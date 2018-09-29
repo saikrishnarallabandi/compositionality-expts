@@ -1,0 +1,3 @@
+[submodule "n2nmn"]
+	path = n2nmn
+	url = https://github.com/ronghanghu/n2nmn
