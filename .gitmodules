@@ -1,3 +1,6 @@
 [submodule "n2nmn"]
 	path = n2nmn
 	url = https://github.com/ronghanghu/n2nmn
+[submodule "explorations/lm/vaelm@03oct"]
+	path = explorations/lm/vaelm@03oct
+	url = https://github.com/kaiix/vaelm
