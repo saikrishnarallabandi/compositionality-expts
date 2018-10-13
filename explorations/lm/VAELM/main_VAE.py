@@ -28,7 +28,7 @@ parser.add_argument('--lr', type=float, default=5,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=2,
+parser.add_argument('--epochs', type=int, default=20,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
@@ -88,8 +88,8 @@ def batchify(data, bsz):
     data = data.view(bsz, -1).t().contiguous()
     return data.cuda()
 
-eval_batch_size = 1
-args.batch_size = 8
+eval_batch_size = 64
+args.batch_size = 128
 train_data = batchify(corpus.train, args.batch_size)
 val_data = batchify(corpus.valid, eval_batch_size)
 test_data = batchify(corpus.test, eval_batch_size)
@@ -145,9 +145,11 @@ def evaluate(data_source):
     #with torch.no_grad():
     kl_loss =0.
     ce_loss = 0.
-    for i in range(0, data_source.size(0) - 1, args.bptt):
+    with torch.no_grad():
+      for i in range(0, data_source.size(0) - 1, args.bptt):
         data, targets = get_batch(data_source, i)
         data = Variable(data)
+        #print("Shape of data in eval: ", data.shape)
         #hidden = Variable(hidden)
         targets = Variable(targets)
         recon_batch, mu, log_var = model(data, None)
@@ -161,7 +163,7 @@ def evaluate(data_source):
         hidden = repackage_hidden(hidden)
         logger.scalar_summary('Val KL Loss', kl_loss/len(data_source) ,i+1)
         logger.scalar_summary('Val Reconstruction Loss', ce_loss/len(data_source) , i+1)
-    return kl_loss / len(data_source), ce_loss / len(data_source)
+    return kl_loss / i, ce_loss / i
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_fn(recon_x, x, mu, logvar):
@@ -212,16 +214,7 @@ def train():
         logger.scalar_summary('Train KL Loss', kl_loss/(batch+1), batch)
         logger.scalar_summary('Train Reconstruction Loss', ce_loss/(batch+1) , batch)
 
-        #print loss
-        if batch % args.log_interval == 0 and batch > 0:
-            cur_loss = total_loss / args.log_interval
-            elapsed = time.time() - start_time
-            #print(epoch, type(epoch))
-            print("epoch, KL loss, CE loss:", epoch, kl_loss/(batch+1), ce_loss/(batch+1)) #, math.exp(cur_loss.item()))
-            #print('| epoch {:3d} | {:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(epoch, batch, lr,0, cur_loss, math.exp(cur_loss)))
-            total_loss = 0
-            start_time = time.time()
-
+    return kl_loss/train_data.size(0) , ce_loss/train_data.size(0)
 
 def export_onnx(path, batch_size, seq_len):
     print('The model is also exported in ONNX format at {}'.
@@ -240,21 +233,22 @@ best_val_loss = None
 try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
-        train()
+        train_klloss, train_celoss = train()
         #print("in train and val")
-        val_loss = evaluate(val_data)
+        dev_klloss,dev_celoss = evaluate(val_data)
+        val_loss = dev_klloss+dev_celoss
         print('-' * 89)
         #print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
         #'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
         #                                   val_loss, math.exp(val_loss)))
-        print("epoch, KL loss, CE loss:", epoch, kl_loss/(batch+1), ce_loss/(batch+1))
+        print("Epoch ", epoch, " Train KL Loss: ", train_klloss, " Train CE Loss: ", train_celoss, " Dev KL loss ", dev_klloss, " Dev CE Loss: ", dev_celoss)
         #print("end epoch, loss, ppl", epoch, val_loss.item()) #, math.exp(val_loss.item()))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
-        if not best_val_loss or val_loss[0] < best_val_loss:
+        if not best_val_loss or val_loss.item() < best_val_loss:
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
-            best_val_loss = val_loss[0]
+            best_val_loss = val_loss.item()
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
             lr /= 4.0
@@ -270,7 +264,8 @@ with open(args.save, 'rb') as f:
     model.rnn.flatten_parameters()
 
 # Run on test data.
-test_loss = evaluate(test_data)
+test_klloss, test_celoss = evaluate(test_data)
+test_loss = test_klloss + test_celoss
 print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
