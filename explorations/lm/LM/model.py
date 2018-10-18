@@ -16,7 +16,7 @@ class RNNModel(nn.Module):
             except KeyError:
                 raise ValueError( """An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
+            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout, batch_first = True)
         self.decoder = nn.Linear(nhid, ntoken)
 
         # Optionally tie weights as in:
@@ -61,7 +61,7 @@ class RNNModel(nn.Module):
         if self.rnn_type == 'LSTM':
             #print ("returned temp")
             return temp
-            
+
             #return (weight.new_zeros(self.nlayers, bsz, self.nhid),
                    # weight.new_zeros(self.nlayers, bsz, self.nhid))
         #else:
