@@ -86,5 +86,5 @@ get_captions('val')
 vwf.close()
 
 get_captions('train')
-vwf.close()
+twf.close()
 
