@@ -19,8 +19,6 @@ val_write_file = 'val2014.captions.txt'
 vwf = open(val_write_file,'w')
 
 caption_id_2_img_id = {}
-val_caption_id_2_caption = {}
-train_caption_id_2_caption = {}
 
 def get_captions(type_of_data):
  
@@ -63,19 +61,11 @@ def get_captions(type_of_data):
             caption = re.sub("[^a-z0-9 ]+", "", caption)
             # remove all double spaces in the caption:
             caption = re.sub("  ", " ", caption)
-            # convert the caption into a vector of words:
-            #caption = caption.split(" ")
-            # remove any empty chars still left in the caption:
-            #while "" in caption:
-            #    index = caption.index("")
-            #    del caption[index]
-
-            # store the caption in the corresponding captions dict:
+            
+            # store the caption in the corresponding captions dict and write to disc:
             if type_of_data == 'val':
-                 val_caption_id_2_caption[caption_id] = caption
                  vwf.write(str(caption_id) + ' ' + caption + '\n')
             elif type_of_data == 'train':
-                 train_caption_id_2_caption[caption_id] = caption
                  twf.write(str(caption_id) + ' ' + caption + '\n')
             else:
                  print "You are not satisfied with a cookie are you?" 
