@@ -13,7 +13,7 @@ class VAEModel(nn.Module):
     def __init__(self,rnn_type,ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
        super(VAEModel, self).__init__()
        self.embedding = nn.Embedding(ntoken, ninp)
-       self.nlatent = 128
+       self.nlatent = 8
        self.fc1 = nn.Linear(ninp,nhid)
        self.fc2_a = nn.Linear(nhid, self.nlatent)
        self.fc2_b = nn.Linear(nhid, self.nlatent)       
@@ -109,8 +109,8 @@ class RNNModel(nn.Module):
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, input, hidden):
-        logging.debug("Shape of input: {}".format(input.shape))
-        logging.debug("Shape of hidden[0]: {}".format(hidden[0].shape))
+        #logging.debug("Shape of input: {}".format(input.shape))
+        #logging.debug("Shape of hidden[0]: {}".format(hidden[0].shape))
         emb = self.drop(self.encoder(input))
         output, hidden = self.rnn(emb, hidden)
         output = self.drop(output)
@@ -118,7 +118,7 @@ class RNNModel(nn.Module):
         logging.debug("Shape of hidden[0]: {}".format(hidden[0].shape))
         decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
         logging.debug("Shape of decoder output: {}".format(decoded.shape))
-        sys.exit()
+        #sys.exit()
         return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
 
     def init_hidden(self, bsz):
