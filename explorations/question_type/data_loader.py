@@ -90,12 +90,16 @@ class Corpus(object):
 
                 # sample is a list
 
-                if sample[0]==self.dictionary.word2idx["Is"] or sample[0]==self.dictionary.word2idx["Are"]:
+                if sample[1]==self.dictionary.word2idx["Is"] or sample[1]==self.dictionary.word2idx["Are"]:
                     type_1 = [0] # yes/no type
-                elif  sample[0]==self.dictionary.word2idx["How"] and sample[1]==self.dictionary.word2idx["Many"]:
+                    #print ("Is")
+                elif  sample[1]==self.dictionary.word2idx["How"] and sample[2]==self.dictionary.word2idx["many"]:
                     type_1 = [1] # count
+                    #print ("Count")
                 else:
                     type_1 = [2] # other
+
+                #print(sample[0], self.dictionary.idx2word[sample[0]])
                 while (len(sample)<max_length):
                     sample.append(self.PAD_IDX) # pad each example
                 #print len(sample)
