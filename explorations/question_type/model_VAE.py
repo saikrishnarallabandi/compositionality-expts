@@ -19,8 +19,9 @@ class VAEModel(nn.Module):
        self.fc1 = nn.Linear(ninp,nhid)
        self.fc2_a = nn.Linear(nhid, self.nlatent)
        self.fc2_b = nn.Linear(nhid, self.nlatent)
-       self.fc3 = nn.Linear(self.nlatent,int(self.nlatent*2))
-       self.fc4 = nn.Linear(int(self.nlatent*2), ntoken)
+       self.fc3_a = nn.Linear(self.nlatent,int(self.nlatent*2))
+       self.fc3_b = nn.Linear(self.ntype_emb,int(self.ntype_emb*2))
+       self.fc4 = nn.Linear(int(self.nlatent*2)+int(self.ntype_emb*2), ntoken)
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
@@ -44,7 +45,7 @@ class VAEModel(nn.Module):
        logging.debug("Shape of input to VAELM is {}".format(x.shape)) # [35, 20]
        embedding = self.embedding(x) # [35, 20, 200]
        condition = self.type_embedding(input_type) # batch X 1 X input_emb
-       print(condition.size(), "type embedding size")
+       #print(condition.size(), "type embedding size")
        logging.debug("Shape of embedding: {}".format(embedding.shape))
        mu, log_var = self.encoder(embedding,hidden)
        logging.debug("Shape of mu after encoder: {}".format(mu.shape))
@@ -55,9 +56,15 @@ class VAEModel(nn.Module):
        return decoded,mu,log_var
 
     def decode(self,z, c):
-       h3 = F.relu(self.fc3(z))
+       h3 = F.relu(self.fc3_a(z))
+       h4 =  F.relu(self.fc3_b(c))
+       #print(h3.size(), h4.size())
+       h4 = h4.expand(h3.size(0),h3.size(1),h4.size(2))
+       #print(h3.size(), h4.size(), "expanded")
+       h5 = torch.cat((h3,h4), dim=2)
+       #print(h3.size(), h4.size(), h5.size())
        # combine here # concat z and type_emb
-       return torch.sigmoid(self.fc4(h3))
+       return torch.sigmoid(self.fc4(h5))
 
 
     def init_hidden(self, bsz):

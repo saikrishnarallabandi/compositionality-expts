@@ -7,11 +7,11 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import data
-import model
+import data_loader as data
+import model_VAE as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='../../data',
+parser.add_argument('--data', type=str, default='../../../../data/VQA/',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
@@ -105,13 +105,14 @@ def evaluate(data_source):
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
+        data_type =  Variable(corpus.valid_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
         hidden = None
         data = Variable(data).cuda()
         targets = Variable(targets).cuda()
-        recon_batch, mu, log_var = model(data, None)
+        recon_batch, mu, log_var = model(data, None, data_type)
         kl,ce = loss_fn(recon_batch, targets,mu,log_var)
         loss = kl + ce
         total_loss += loss.item()
@@ -132,8 +133,8 @@ def train():
     ce_loss = 0
     for i in range(0, len(corpus.train), args.bptt):
         data_full = corpus.train[i]
-        data_type  = corpus.train_type[i]
-        print data_type.size(), data_full.size()
+        data_type  = Variable(corpus.train_type[i]).cuda()
+        #print(data_type.size(), data_full.size())
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #print data.size(), targets.size()
@@ -142,7 +143,7 @@ def train():
         targets = Variable(targets).cuda()
         #hidden = repackage_hidden(hidden)
         model.zero_grad()
-        recon_batch, mu, log_var = model(data, None, data_full)
+        recon_batch, mu, log_var = model(data, None,data_type)
         #print output.size(), targets.size()
         kl,ce = loss_fn(recon_batch, targets,mu,log_var)
         loss  = kl + ce
