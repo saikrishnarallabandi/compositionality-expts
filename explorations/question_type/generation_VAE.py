@@ -64,9 +64,9 @@ if torch.cuda.is_available():
 ###############################################################################
 
 corpus = data.Corpus(args.data, 32)
-print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
-print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
-print len(corpus.test), "Samples for Test"
+#print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
+#print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
+#print len(corpus.test), "Samples for Test"
 
 
 
@@ -91,7 +91,7 @@ def evaluate(data_source):
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
-        data_type  = Variable(corpus.valid_type[i]).cuda()
+        data_type  = Variable(corpus.test_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
@@ -99,7 +99,7 @@ def evaluate(data_source):
         data = Variable(data).cuda()
         targets = Variable(targets).cuda()
         # get the data type too and print it along
-        type_question_id = int(data_type[0,0,0])
+        type_question_id = int(data_type[0,0])
         if type_question_id==0:
             type_question = "Yes/No"
         if type_question_id==1:
@@ -125,7 +125,7 @@ def evaluate(data_source):
             elif len(gen_questions)==25:
                 break
 
-        print type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions)
+        print (type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions))
     return None
 
 # Loop over epochs.

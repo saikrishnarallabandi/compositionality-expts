@@ -59,6 +59,7 @@ class VAEModel(nn.Module):
        h3 = F.relu(self.fc3_a(z))
        h4 =  F.relu(self.fc3_b(c))
        #print(h3.size(), h4.size())
+       #print("batch_size", z.size(), c.size())
        h4 = h4.expand(h3.size(0),h3.size(1),h4.size(2))
        #print(h3.size(), h4.size(), "expanded")
        h5 = torch.cat((h3,h4), dim=2)
