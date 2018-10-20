@@ -3,7 +3,6 @@
 
 
 
-# coding: utf-8
 import argparse
 import time
 import math
@@ -12,11 +11,11 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import data
-import model
+import data_loader as data
+import model_VAE as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='./',
+parser.add_argument('--data', type=str, default='../../../../data/VQA/',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
@@ -73,8 +72,8 @@ print len(corpus.test), "Samples for Test"
 
 ntokens = len(corpus.dictionary)
 
-model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
-criterion = nn.CrossEntropyLoss(ignore_index=corpus.PAD_IDX)
+#model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
+#criterion = nn.CrossEntropyLoss(ignore_index=corpus.PAD_IDX)
 
 
 ###############################################################################
@@ -92,13 +91,21 @@ def evaluate(data_source):
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
+        data_type  = Variable(corpus.valid_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
         hidden = None
         data = Variable(data).cuda()
         targets = Variable(targets).cuda()
-
+        # get the data type too and print it along
+        type_question_id = int(data_type[0,0,0])
+        if type_question_id==0:
+            type_question = "Yes/No"
+        if type_question_id==1:
+            type_question = "Count"
+        if type_question_id==2:
+            type_question = "Other"
         original_questions = []
         gen_questions = []
         new_input_token = data[:,0].unsqueeze(1) # SOS
@@ -106,7 +113,7 @@ def evaluate(data_source):
             original_questions.append(corpus.dictionary.idx2word[int(data[:,d])])
 
         while True:
-            recon_batch, _, _ = model(new_input_token, None)
+            recon_batch, _, _ = model(new_input_token, None, data_type)
             output = torch.nn.functional.softmax(recon_batch, dim=2)
             generated_token = torch.multinomial(output.squeeze(), 1)[0]
             #print generated_token.size(), type(generated_token)
@@ -118,7 +125,7 @@ def evaluate(data_source):
             elif len(gen_questions)==25:
                 break
 
-        print ' '.join(original_questions)+"\t\t"+' '.join(gen_questions)
+        print type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions)
     return None
 
 # Loop over epochs.
