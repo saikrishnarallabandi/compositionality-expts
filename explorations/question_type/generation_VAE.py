@@ -102,11 +102,7 @@ def evaluate(data_source, data_type, train_test=False):
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
-<<<<<<< HEAD
         data_type  = Variable(data_type[i]).cuda()
-=======
-        data_type  = Variable(corpus.test_type[i]).cuda()
->>>>>>> 111ebe60b2275fbdf92a4ed10e59b60b298aecee
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
