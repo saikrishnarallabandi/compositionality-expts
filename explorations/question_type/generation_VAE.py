@@ -43,6 +43,8 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
+parser.add_argument('--generate', action='store_true',
+                    help='use generation script for test data')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str, default='model.pt',
@@ -58,7 +60,7 @@ if torch.cuda.is_available():
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 #device = torch.device("cuda" if args.cuda else "cpu")
-generate = False
+#generate = True
 ###############################################################################
 # Load data
 ###############################################################################
@@ -92,6 +94,7 @@ def gen_evaluate(data_source, data_type, train_test=False):
     ce_loss = 0
     print (len(data_source))
     print (data_source[0].size())
+
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
@@ -140,6 +143,6 @@ corpus = data.Corpus(args.data, 32)
 #print len(corpus.test), "Samples for Test"
 ntokens = len(corpus.dictionary)
 # Run on test data.
-if generate:
+if args.generate:
 
     test_loss = gen_evaluate(corpus.test, corpus.test_type)
