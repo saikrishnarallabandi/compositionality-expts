@@ -9,7 +9,7 @@ import torch.onnx
 from torch.autograd import Variable
 import data_loader as data
 import model_VAE as model
-from generation_VAE import evaluate
+from generation_VAE import gen_evaluate
 
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
@@ -192,7 +192,7 @@ try:
             single_train_sample = corpus.train[300][0]
             single_train_sample_type = corpus.train_type[300][0]
             print(single_train_sample.size(), single_train_sample_type.size())
-            evaluate(single_train_sample, single_train_sample_type)
+            gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
 
 
         else:

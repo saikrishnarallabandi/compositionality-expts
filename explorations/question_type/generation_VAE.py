@@ -72,7 +72,7 @@ generate = False
 # Generation code
 ###############################################################################
 
-def evaluate(data_source, data_type, train_test=False):
+def gen_evaluate(data_source, data_type, train_test=False):
     # Turn on evaluation mode which disables dropout.
     # Loop over epochs.
     lr = args.lr
@@ -141,4 +141,4 @@ if generate:
     #print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
     #print len(corpus.test), "Samples for Test"
     ntokens = len(corpus.dictionary)
-    test_loss = evaluate(corpus.test, corpus.test_type)
+    test_loss = gen_evaluate(corpus.test, corpus.test_type)
