@@ -11,6 +11,12 @@ class Dictionary(object):
             self.idx2word.append(word)
             self.word2idx[word] = len(self.idx2word) - 1
         return self.word2idx[word]
+    def get_word(self, word):
+        if word not in self.word2idx:
+            return self.word2idx["UNK"]
+        else:
+            return self.word2idx[word]
+
 
     def __len__(self):
         return len(self.idx2word)
@@ -21,9 +27,9 @@ class Corpus(object):
         self.dictionary = Dictionary()
         self.PAD_IDX = self.dictionary.add_word('PAD')
         #print "init"
-        self.train, self.train_type = self.tokenize(os.path.join(path, 'train2014.questions.txt'), batch_size)
-        self.valid, self.valid_type = self.tokenize(os.path.join(path, 'val2014.questions.txt'), batch_size)
-        self.test, self.test_type = self.tokenize(os.path.join(path, 'val2014.questions.txt'), 1)
+        self.train, self.train_type = self.tokenize(os.path.join(path, 'train2014.questions.txt'), batch_size, True)
+        self.valid, self.valid_type = self.tokenize(os.path.join(path, 'val2014.questions.txt'), batch_size, False)
+        self.test, self.test_type = self.tokenize(os.path.join(path, 'val2014.questions.txt'), 1, False)
         # Tokenize, pad and batchify and UNK words
 
         #return self.train, self.valid, self.test
@@ -32,12 +38,14 @@ class Corpus(object):
 
     # add words in the dictionary
 
-    def tokenize(self, path, batch_size):
+    def tokenize(self, path, batch_size, add_word):
         """Tokenizes a text file."""
         #print path
         #print "tokenize"
         assert os.path.exists(path)
         # Add words to the dictionary
+        self.dictionary.add_word("UNK")
+        freq_count = {}
         with open(path, 'r') as f:
             tokens = 0
             for line in f:
@@ -47,7 +55,13 @@ class Corpus(object):
                     if word[-1]=="?":
                         word = word[:len(word)-1]
                         self.dictionary.add_word("?")
+
                     self.dictionary.add_word(word)
+
+                    if word not in freq_count:
+                        freq_count[word]=0
+                    freq_count[word]+=1
+
 
         # Tokenize file content
 
@@ -62,12 +76,32 @@ class Corpus(object):
                     if word[-1]=="?":
                         word = word[:len(word)-1]
                         found_question = True
-                    token = self.dictionary.word2idx[word]
-                    tokens.append(token)
-                    if found_question:
-                        token = self.dictionary.word2idx["?"]
-                        found_question = False
+
+
+                    if add_word and freq_count[word]>5: # only add train words and most frequent words
+                        token = self.dictionary.word2idx[word]
                         tokens.append(token)
+                        if found_question:
+                            token = self.dictionary.word2idx["?"]
+                            found_question = False
+                            tokens.append(token)
+                    else:
+                        if word not in freq_count or freq_count[word]<5:
+                            token = self.dictionary.get_word("UNK")
+                            tokens.append(token)
+                            if found_question:
+                                token =  self.dictionary.get_word("?")
+                                found_question = False
+                                tokens.append(token)
+                        else:
+                            token = self.dictionary.get_word(word)
+                            tokens.append(token)
+                            if found_question:
+                                token =  self.dictionary.get_word("?")
+                                found_question = False
+                                tokens.append(token)
+
+
                     #tokens.append(token)
                 all_samples.append(tokens)
             return self.batchify(all_samples, batch_size)
