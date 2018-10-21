@@ -133,12 +133,12 @@ def gen_evaluate(data_source, data_type, train_test=False):
             break
     return None
 
-
+corpus = data.Corpus(args.data, 32)
+#print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
+#print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
+#print len(corpus.test), "Samples for Test"
+ntokens = len(corpus.dictionary)
 # Run on test data.
 if generate:
-    corpus = data.Corpus(args.data, 32)
-    #print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
-    #print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
-    #print len(corpus.test), "Samples for Test"
-    ntokens = len(corpus.dictionary)
+
     test_loss = gen_evaluate(corpus.test, corpus.test_type)
