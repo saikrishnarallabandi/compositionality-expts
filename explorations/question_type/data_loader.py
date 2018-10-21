@@ -98,6 +98,8 @@ class Corpus(object):
                     #print "Count type"
                 else:
                     type_1 = [2] # other
+
+                #print(sample[0], self.dictionary.idx2word[sample[0]])
                 while (len(sample)<max_length):
                     sample.append(self.PAD_IDX) # pad each example
                 #print len(sample)
