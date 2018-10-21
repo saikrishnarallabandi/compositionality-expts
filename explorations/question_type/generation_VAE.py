@@ -58,19 +58,11 @@ if torch.cuda.is_available():
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
 #device = torch.device("cuda" if args.cuda else "cpu")
-
+generate = False
 ###############################################################################
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data, 32)
-#print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
-#print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
-#print len(corpus.test), "Samples for Test"
-
-
-
-ntokens = len(corpus.dictionary)
 
 #model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 #criterion = nn.CrossEntropyLoss(ignore_index=corpus.PAD_IDX)
@@ -143,5 +135,10 @@ def evaluate(data_source, data_type, train_test=False):
 
 
 # Run on test data.
-
-test_loss = evaluate(corpus.test, corpus.test_type)
+if generate:
+    corpus = data.Corpus(args.data, 32)
+    #print len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train"
+    #print len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid"
+    #print len(corpus.test), "Samples for Test"
+    ntokens = len(corpus.dictionary)
+    test_loss = evaluate(corpus.test, corpus.test_type)
