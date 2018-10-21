@@ -90,8 +90,8 @@ def gen_evaluate(data_source, data_type, train_test=False):
     ntokens = len(corpus.dictionary)
     kl_loss = 0
     ce_loss = 0
-    print len(data_source)
-    print data_source[i].size()
+    print (len(data_source))
+    print (data_source[i].size())
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
