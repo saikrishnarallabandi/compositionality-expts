@@ -80,8 +80,19 @@ ntokens = len(corpus.dictionary)
 # Generation code
 ###############################################################################
 
-def evaluate(data_source):
+def evaluate(data_source, data_type, train_test=False):
     # Turn on evaluation mode which disables dropout.
+    # Loop over epochs.
+    lr = args.lr
+    best_val_loss = None
+
+    # Load the best saved model.
+    with open(args.save, 'rb') as f:
+        model = torch.load(f)
+        # after load the rnn params are not a continuous chunk of memory
+        # this makes them a continuous chunk, and will speed up forward pass
+        #model.rnn.flatten_parameters()
+
     model.eval()
     total_loss = 0.
     ntokens = len(corpus.dictionary)
@@ -91,7 +102,7 @@ def evaluate(data_source):
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
-        data_type  = Variable(corpus.valid_type[i]).cuda()
+        data_type  = Variable(data_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
@@ -126,19 +137,11 @@ def evaluate(data_source):
                 break
 
         print type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions)
+        if train_test:
+            break
     return None
 
-# Loop over epochs.
-lr = args.lr
-best_val_loss = None
-
-# Load the best saved model.
-with open(args.save, 'rb') as f:
-    model = torch.load(f)
-    # after load the rnn params are not a continuous chunk of memory
-    # this makes them a continuous chunk, and will speed up forward pass
-    #model.rnn.flatten_parameters()
 
 # Run on test data.
 
-test_loss = evaluate(corpus.test)
+test_loss = evaluate(corpus.test, corpus.test_type)

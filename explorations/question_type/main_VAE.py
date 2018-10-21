@@ -9,6 +9,8 @@ import torch.onnx
 from torch.autograd import Variable
 import data_loader as data
 import model_VAE as model
+from generation_VAE import evaluate
+
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -186,6 +188,13 @@ try:
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
             best_val_loss = val_loss.item()
+            # add the check for generation here
+            single_train_sample = corpus.train[300][0]
+            single_train_sample_type = corpus.train_type[300][0]
+            print single_train_sample.size(), single_train_sample_type.size()
+            evaluate(single_train_sample, single_train_sample_type)
+
+
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
             lr /= 4.0
