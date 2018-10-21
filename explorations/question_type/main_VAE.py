@@ -189,9 +189,9 @@ try:
                 torch.save(model, f)
             best_val_loss = val_loss.item()
             # add the check for generation here
-            single_train_sample = corpus.train[300][0].unsqueeze(0)
-            single_train_sample_type = corpus.train_type[300][0].unsqueeze(0)
-            print(single_train_sample.size(), single_train_sample_type.size())
+            single_train_sample = [corpus.train[300][0].unsqueeze(0)]
+            single_train_sample_type = [corpus.train_type[300][0].unsqueeze(0)]
+            #print(single_train_sample.size(), single_train_sample_type.size())
             gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
 
 

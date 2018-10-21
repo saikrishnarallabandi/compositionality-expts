@@ -74,7 +74,7 @@ if torch.cuda.is_available():
 # Generation code
 ###############################################################################
 
-def gen_evaluate(data_source, data_type, train_test=False):
+def gen_evaluate(data_source, data_source_type, train_test=False):
     # Turn on evaluation mode which disables dropout.
     # Loop over epochs.
     lr = args.lr
@@ -92,13 +92,13 @@ def gen_evaluate(data_source, data_type, train_test=False):
     ntokens = len(corpus.dictionary)
     kl_loss = 0
     ce_loss = 0
-    print (len(data_source))
-    print (data_source[0].size())
+    #print (len(data_source))
+    #print (data_source[0].size())
 
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
-        data_type  = Variable(data_type[i]).cuda()
+        data_type  = Variable(data_source_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         #hidden = model.init_hidden(data.size(0))
