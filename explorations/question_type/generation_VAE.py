@@ -128,7 +128,7 @@ def evaluate(data_source, data_type, train_test=False):
             elif len(gen_questions)==25:
                 break
 
-        print type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions)
+        print(type_question+"\t\t"+' '.join(original_questions)+"\t\t"+' '.join(gen_questions))
         if train_test:
             break
     return None

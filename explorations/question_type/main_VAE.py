@@ -191,7 +191,7 @@ try:
             # add the check for generation here
             single_train_sample = corpus.train[300][0]
             single_train_sample_type = corpus.train_type[300][0]
-            print single_train_sample.size(), single_train_sample_type.size()
+            print(single_train_sample.size(), single_train_sample_type.size())
             evaluate(single_train_sample, single_train_sample_type)
 
 
