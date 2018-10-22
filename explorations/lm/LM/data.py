@@ -44,6 +44,9 @@ class Corpus(object):
                 words = ['<sos>'] + line.split() + ['<eos>']
                 tokens += len(words)
                 for word in words:
+                    if word[-1]=="?":
+                        word = word[:len(word)-1]
+                        self.dictionary.add_word("?")
                     self.dictionary.add_word(word)
 
         # Tokenize file content
@@ -55,8 +58,17 @@ class Corpus(object):
                 words = ['<sos>']+ line.split() + ['<eos>']
                 tokens = []
                 for word in words:
+                    found_question = False
+                    if word[-1]=="?":
+                        word = word[:len(word)-1]
+                        found_question = True
                     token = self.dictionary.word2idx[word]
                     tokens.append(token)
+                    if found_question:
+                        token = self.dictionary.word2idx["?"]
+                        found_question = False
+                        tokens.append(token)
+                    #tokens.append(token)
                 all_samples.append(tokens)
             return self.batchify(all_samples, batch_size)
 
