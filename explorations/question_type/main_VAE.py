@@ -30,7 +30,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -63,7 +63,7 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data, 32)
+corpus = data.Corpus(args.data, args.batch_size)
 print (len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train")
 print (len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid")
 print (len(corpus.test), "Samples for Test")

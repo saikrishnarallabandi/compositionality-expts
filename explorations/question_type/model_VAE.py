@@ -25,12 +25,12 @@ class VAEModel(nn.Module):
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
-       self.rnn = nn.LSTM(nhid, int(nhid/2), num_layers=2, bidirectional=True)
+       self.rnn = nn.LSTM(ninp, int(nhid/2), num_layers=2, bidirectional=True)
 
     def encoder(self, emb, hidden):
        logging.debug("In Encoder")
        output, hidden = self.rnn(emb, hidden)
-
+       # output = batch X seq X hidden 
        logging.debug("Shape of output: {}".format(output.shape))
 
        h1 = F.relu(self.fc1(output))

@@ -8,17 +8,42 @@ import torch.nn.functional as F
 
 #logging.basicConfig(level=logging.DEBUG)
 
+
+class SequenceWise(nn.Module):
+    def __init__(self, module):
+        """
+        Collapses input of dim T*N*H to (T*N)*H, and applies to a module.
+        Allows handling of variable sequence lengths and minibatch sizes.
+        :param module: Module to apply input to.
+        """
+        super(SequenceWise, self).__init__()
+        self.module = module
+
+    def forward(self, x):
+        t, n = x.size(0), x.size(1)
+        x = x.view(t * n, -1)
+        x = self.module(x)
+        x = x.view(t, n, -1)
+        return x
+
+    def __repr__(self):
+        tmpstr = self.__class__.__name__ + ' (\n'
+        tmpstr += self.module.__repr__()
+        tmpstr += ')'
+        return tmpstr
+
+
 class VAEModel(nn.Module):
 
     def __init__(self,rnn_type,ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
        super(VAEModel, self).__init__()
        self.embedding = nn.Embedding(ntoken, ninp)
        self.nlatent = 8
-       self.fc1 = nn.Linear(ninp,nhid)
-       self.fc2_a = nn.Linear(nhid, self.nlatent)
-       self.fc2_b = nn.Linear(nhid, self.nlatent)       
-       self.fc3 = nn.Linear(self.nlatent,int(self.nlatent*2))
-       self.fc4 = nn.Linear(int(self.nlatent*2), ntoken)
+       self.fc1 = SequenceWise(nn.Linear(ninp,nhid))
+       self.fc2_a = SequenceWise(nn.Linear(nhid, self.nlatent))
+       self.fc2_b = SequenceWise(nn.Linear(nhid, self.nlatent))       
+       self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent*2)))
+       self.fc4 = SequenceWise(nn.Linear(int(self.nlatent*2), ntoken))
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
