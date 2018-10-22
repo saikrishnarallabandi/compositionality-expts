@@ -2,7 +2,7 @@
 
 
 
-
+import random
 import argparse
 import time
 import math
@@ -74,6 +74,24 @@ if torch.cuda.is_available():
 # Generation code
 ###############################################################################
 
+def sample_gumbel(shape, eps=1e-10, out=None):
+   """
+   Sample from Gumbel(0, 1)
+   based on
+   https://github.com/ericjang/gumbel-softmax/blob/3c8584924603869e90ca74ac20a6a03d99a91ef9/Categorical%20VAE.ipynb ,
+   (MIT license)
+   """
+   U = out.resize_(shape).uniform_() if out is not None else torch.rand(shape)
+   return - torch.log(eps - torch.log(U + eps))
+
+def gumbel_argmax(logits, dim):
+   # Draw from a multinomial distribution efficiently
+   logits.squeeze_(0)
+   logits.squeeze_(0)
+   #print(logits.shape)
+   return torch.max(logits + sample_gumbel(logits.size(), out=logits.data.new()), dim)[1]
+
+
 def gen_evaluate(data_source, data_source_type, train_test=False):
     # Turn on evaluation mode which disables dropout.
     # Loop over epochs.
@@ -94,7 +112,9 @@ def gen_evaluate(data_source, data_source_type, train_test=False):
     ce_loss = 0
     #print (len(data_source))
     #print (data_source[0].size())
-
+    print(data_source[0])
+    random.shuffle(data_source)
+    print(data_source[0])
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
@@ -122,7 +142,9 @@ def gen_evaluate(data_source, data_source_type, train_test=False):
         while True:
             recon_batch, _, _ = model(new_input_token, None, data_type)
             output = torch.nn.functional.softmax(recon_batch, dim=2)
-            generated_token = torch.multinomial(output.squeeze(), 1)[0]
+            #generated_token = torch.multinomial(output.squeeze(), 1)[0]
+            generated_token = gumbel_argmax(output,0)
+            #print "The shpae of generated token is ", generated_token.shape
             #print generated_token.size(), type(generated_token)
             generated_word = corpus.dictionary.idx2word[int(generated_token.squeeze())]
             gen_questions.append(generated_word)

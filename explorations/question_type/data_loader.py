@@ -88,7 +88,7 @@ class Corpus(object):
                     else:
                         if word in freq_count and freq_count[word]<5:
                             token = self.dictionary.get_word("UNK")
-                            print ("UNKED a word due to less freq")
+                            #print ("UNKED a word due to less freq")
                             tokens.append(token)
                             if found_question:
                                 token =  self.dictionary.get_word("?")

@@ -10,6 +10,7 @@ from torch.autograd import Variable
 import data_loader as data
 import model_VAE as model
 from generation_VAE import gen_evaluate
+import random
 
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
@@ -19,7 +20,7 @@ parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
 parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=200,
+parser.add_argument('--nhid', type=int, default=512,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -29,7 +30,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=32, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -48,7 +49,7 @@ parser.add_argument('--save', type=str, default='model.pt',
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
 args = parser.parse_args()
-ntype_emb = 30
+ntype_emb = 100
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -103,9 +104,11 @@ def evaluate(data_source):
     ntokens = len(corpus.dictionary)
     kl_loss = 0
     ce_loss = 0
-
+    ctr = 0
+    #random.shuffle(data_source)
     with torch.no_grad():
-      for i in range(0, len(data_source), args.bptt):
+      for i in range(0, len(data_source)):
+        ctr += 1
         data_full = data_source[i]
         data_type =  Variable(corpus.valid_type[i]).cuda()
         data = data_full[:,0:data_full.size(1)-1]
@@ -121,8 +124,8 @@ def evaluate(data_source):
         kl_loss += kl
         ce_loss += ce
         #hidden = repackage_hidden(hidden)
-    print("KL ", kl_loss, "CE: ", ce_loss)
-    return kl_loss / i, ce_loss / i
+    print("KL ", kl_loss/ctr, "CE: ", ce_loss/ctr)
+    return kl_loss / ctr, ce_loss / ctr
 
 def train():
     # Turn on training mode which enables dropout.
@@ -133,7 +136,10 @@ def train():
     hidden = model.init_hidden(args.batch_size)
     kl_loss = 0
     ce_loss = 0
-    for i in range(0, len(corpus.train), args.bptt):
+    ctr = 0
+    #random.shuffle(corpus.train)
+    for i in range(0, len(corpus.train)):
+        ctr += 1
         data_full = corpus.train[i]
         data_type  = Variable(corpus.train_type[i]).cuda()
         #print(data_type.size(), data_full.size())
@@ -150,6 +156,7 @@ def train():
         kl,ce = loss_fn(recon_batch, targets,mu,log_var)
         loss  = kl + ce
         loss.backward()
+ 
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
@@ -160,7 +167,17 @@ def train():
         ce_loss += ce.item()
         total_loss += kl + ce
 
-    return kl_loss/i , ce_loss/i
+        #with open(args.save, 'wb') as f:
+        #         torch.save(model, f)
+
+        if i % 1000 == 1:
+            print ("Generation after processing ", i , " batches: " ) 
+            single_train_sample = [corpus.train[330][0].unsqueeze(0)]
+            single_train_sample_type = [corpus.train_type[330][0].unsqueeze(0)]
+            gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
+
+
+    return kl_loss/ctr , ce_loss/ctr
 
 
 
@@ -189,10 +206,10 @@ try:
                 torch.save(model, f)
             best_val_loss = val_loss.item()
             # add the check for generation here
-            single_train_sample = [corpus.train[300][0].unsqueeze(0)]
-            single_train_sample_type = [corpus.train_type[300][0].unsqueeze(0)]
+            #single_train_sample = [corpus.train[300][0].unsqueeze(0)]
+            #single_train_sample_type = [corpus.train_type[300][0].unsqueeze(0)]
             #print(single_train_sample.size(), single_train_sample_type.size())
-            gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
+            #gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
 
 
         else:
