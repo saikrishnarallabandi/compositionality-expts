@@ -100,9 +100,10 @@ def evaluate(data_source):
     ntokens = len(corpus.dictionary)
     kl_loss = 0
     ce_loss = 0
-
+    ctr = 0
     with torch.no_grad():
       for i in range(0, len(data_source), args.bptt):
+        ctr += 1
         data_full = data_source[i]
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
@@ -117,8 +118,8 @@ def evaluate(data_source):
         kl_loss += kl
         ce_loss += ce
         #hidden = repackage_hidden(hidden)
-    print("KL ", kl_loss, "CE: ", ce_loss)
-    return kl_loss / i, ce_loss / i
+    print("KL ", kl_loss/ctr, "CE: ", ce_loss/ctr)
+    return kl_loss / ctr, ce_loss / ctr
 
 def train():
     # Turn on training mode which enables dropout.
@@ -129,7 +130,9 @@ def train():
     hidden = model.init_hidden(args.batch_size)
     kl_loss = 0
     ce_loss = 0
+    ctr = 0
     for i in range(0, len(corpus.train), args.bptt):
+        ctr += 1
         data_full = corpus.train[i]
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
@@ -154,7 +157,7 @@ def train():
         ce_loss += ce.item()
         total_loss += kl + ce
 
-    return kl_loss/i , ce_loss/i
+    return kl_loss/ctr , ce_loss/ctr
 
 
 
