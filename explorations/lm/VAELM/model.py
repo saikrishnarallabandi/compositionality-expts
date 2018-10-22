@@ -38,24 +38,26 @@ class VAEModel(nn.Module):
     def __init__(self,rnn_type,ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
        super(VAEModel, self).__init__()
        self.embedding = nn.Embedding(ntoken, ninp)
-       self.nlatent = 8
-       self.fc1 = SequenceWise(nn.Linear(ninp,nhid))
-       self.fc2_a = SequenceWise(nn.Linear(nhid, self.nlatent))
-       self.fc2_b = SequenceWise(nn.Linear(nhid, self.nlatent))       
+       self.nlatent = 128
+       self.fc1 = SequenceWise(nn.Linear(nhid,nhid*2))
+       self.fc2_a = SequenceWise(nn.Linear(nhid*2, self.nlatent))
+       self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))       
        self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent*2)))
        self.fc4 = SequenceWise(nn.Linear(int(self.nlatent*2), ntoken))
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
-       self.rnn = nn.LSTM(nhid, int(nhid/2), num_layers=2, bidirectional=True)
+       self.rnn = nn.LSTM(ninp, int(nhid/2), num_layers=2, bidirectional=True)
 
     def encoder(self, emb, hidden):
        logging.debug("In Encoder")
        output, hidden = self.rnn(emb, hidden)
        
-       logging.debug("Shape of output: {}".format(output.shape))
+       logging.debug("Shape of output from LSTM: {}".format(output.shape))
 
        h1 = F.relu(self.fc1(output))
+       logging.debug("Shape of output from FC1: {}".format(h1.shape))
+
        return self.fc2_a(h1), self.fc2_b(h1)
 
     def reparameterize(self, mu, log_var):
