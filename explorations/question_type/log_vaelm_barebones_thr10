@@ -1,0 +1,31 @@
+nohup: ignoring input
+I tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA library libcublas.so.8.0 locally
+I tensorflow/stream_executor/dso_loader.cc:126] Couldn't open CUDA library libcudnn.so.5. LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda-8.0/lib64:/usr/local/cuda-8.0/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda-8.0/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda-8.0/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+I tensorflow/stream_executor/cuda/cuda_dnn.cc:3517] Unable to load cuDNN DSO
+I tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA library libcufft.so.8.0 locally
+I tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA library libcuda.so.1 locally
+I tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA library libcurand.so.8.0 locally
+3614
+None 3 10
+Aftr epoch  0  Train KL Loss:  0.015616546770961014 Train CE Loss:  7.433054944104755 Val KL Loss:  0.00037176556808432354  Val CE Loss:  7.430883857454221 Time:  179.31724095344543
+Aftr epoch  1  Train KL Loss:  0.00025056171970269116 Train CE Loss:  7.430892449678834 Val KL Loss:  0.00010937554089678932  Val CE Loss:  7.430745489511294 Time:  178.56207132339478
+Aftr epoch  2  Train KL Loss:  0.00012171102553298793 Train CE Loss:  7.430804321262025 Val KL Loss:  -7.12409461896444e-05  Val CE Loss:  7.4306786250822325 Time:  179.3960301876068
+Aftr epoch  3  Train KL Loss:  0.000109816738164302 Train CE Loss:  7.430779798866547 Val KL Loss:  2.74467137978249e-05  Val CE Loss:  7.43066187586981 Time:  177.944748878479
+Aftr epoch  4  Train KL Loss:  0.00010526602338884295 Train CE Loss:  7.4307721339550215 Val KL Loss:  -4.2229099679239016e-05  Val CE Loss:  7.430666726889069 Time:  180.4921863079071
+Aftr epoch  5  Train KL Loss:  0.0001217774931610245 Train CE Loss:  7.430740862040175 Val KL Loss:  0.00016887132654485015  Val CE Loss:  7.4307052155130915 Time:  178.81790137290955
+Aftr epoch  6  Train KL Loss:  0.00044244003971827397 Train CE Loss:  7.430707771077598 Val KL Loss:  0.00042216564269409966  Val CE Loss:  7.430684635196765 Time:  163.95450568199158
+Aftr epoch  7  Train KL Loss:  0.0004248305233483462 Train CE Loss:  7.430687868963812 Val KL Loss:  2.8154161787524667e-05  Val CE Loss:  7.430670721629231 Time:  164.56271195411682
+Aftr epoch  8  Train KL Loss:  0.00042160612713430345 Train CE Loss:  7.430677103136004 Val KL Loss:  0.0003239028847094664  Val CE Loss:  7.430667405583195 Time:  164.99964904785156
+Aftr epoch  9  Train KL Loss:  0.0004366834292706755 Train CE Loss:  7.430694948275065 Val KL Loss:  -0.00045046228723427683  Val CE Loss:  7.430674325682453 Time:  164.59079766273499
+Aftr epoch  10  Train KL Loss:  0.00041872444226569736 Train CE Loss:  7.430689292040068 Val KL Loss:  0.0004646133746682983  Val CE Loss:  7.430699060934106 Time:  164.65901255607605
+Aftr epoch  11  Train KL Loss:  0.00042355857866326557 Train CE Loss:  7.4306948860896 Val KL Loss:  0.0008012421505967367  Val CE Loss:  7.430677322567123 Time:  163.70419311523438
+Aftr epoch  12  Train KL Loss:  0.0004018015775483908 Train CE Loss:  7.4306792814707014 Val KL Loss:  -1.4082768682352047e-05  Val CE Loss:  7.430680012027013 Time:  164.03610682487488
+Aftr epoch  13  Train KL Loss:  0.00040363157840119196 Train CE Loss:  7.4306759582352395 Val KL Loss:  0.000802247817676092  Val CE Loss:  7.430681120611958 Time:  165.37864136695862
+Aftr epoch  14  Train KL Loss:  0.00041826604721472435 Train CE Loss:  7.4306898853828 Val KL Loss:  0.0006477260942926112  Val CE Loss:  7.4306829145888695 Time:  164.28531455993652
+Aftr epoch  15  Train KL Loss:  0.00043114841598825357 Train CE Loss:  7.43068832171332 Val KL Loss:  -0.00015495739032312766  Val CE Loss:  7.430678895576713 Time:  164.70637798309326
+Aftr epoch  16  Train KL Loss:  0.00039603634900653483 Train CE Loss:  7.430673825679366 Val KL Loss:  0.0005772968350919251  Val CE Loss:  7.430680252780619 Time:  163.79532122612
+Aftr epoch  17  Train KL Loss:  0.0004159021546545717 Train CE Loss:  7.430680816996958 Val KL Loss:  0.0008030820791561579  Val CE Loss:  7.43068136855499 Time:  165.13855266571045
+Aftr epoch  18  Train KL Loss:  0.00038953569439268603 Train CE Loss:  7.43067240579841 Val KL Loss:  0.0005073504810480727  Val CE Loss:  7.430689969443783 Time:  165.64314317703247
+Aftr epoch  19  Train KL Loss:  0.00040500818070062655 Train CE Loss:  7.4306804288293895 Val KL Loss:  0.0005208987435421993  Val CE Loss:  7.430682334088788 Time:  165.49656414985657
+Aftr epoch  20  Train KL Loss:  0.0003893619460850647 Train CE Loss:  7.430683411089415 Val KL Loss:  0.0008156543155920874  Val CE Loss:  7.4306720121619625 Time:  164.32765078544617
+Aftr epoch  21  Train KL Loss:  0.00033501228413631006 Train CE Loss:  7.430665048065873 Val KL Loss:  0.0005633947775535977  Val CE Loss:  7.430674906612672 Time:  164.59261202812195

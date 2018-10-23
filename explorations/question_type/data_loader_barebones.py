@@ -23,11 +23,11 @@ class vqa_dataset(Dataset):
         wids['<sos>'] = 1
         wids['<eos>'] = 2
         wids['UNK'] = 3
-        word_tokens = self.remove_rarewords(file)
+        word_tokens = self.remove_rarewords(file, 10)
         #sys.exit()
         f = open(file)
         for line in f:
-           line = line.split('\n')[0].split()
+           line = word_tokenize(line.split('\n')[0])
            for i, w in enumerate(line):
                if not train_flag: # Validation Mode / Testing Mode
                  if w in wids and w in word_tokens:
@@ -41,8 +41,9 @@ class vqa_dataset(Dataset):
            self.utts.append([1]  + [wids[w] for w in line] + [2])
            self.types.append(self.get_type(line))
 
-    def remove_rarewords(self, file):
+    def remove_rarewords(self, file, freq):
        words = defaultdict(int)
+       freq = int(freq)
        f = open(file)
        for line in f:
            line =  line.split('\n')[0]
@@ -51,10 +52,10 @@ class vqa_dataset(Dataset):
            for w in line:
               words[w] += 1
        for k in list(words):
-         print(k, words[k])
-         if words[k] < 5:
-            print("Deleting")
-            print('\n')
+         #print(k, words[k])
+         if words[k] < freq:
+            ##print("Deleting")
+            ##print('\n')
             del words[k]
        f.close()
        return words 

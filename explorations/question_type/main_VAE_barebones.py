@@ -10,6 +10,8 @@ from torch.autograd import Variable
 from data_loader_barebones import *
 import model_VAE_barebones as model
 from logger import *
+import logging
+
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -28,7 +30,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=128, metavar='N',
+parser.add_argument('--batch_size', type=int, default=32, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -84,13 +86,15 @@ valid_loader = DataLoader(valid_set,
 valid_wids = vqa_dataset.get_wids()
 
 assert (len(valid_wids) == len(train_wids))
-
+print(len(valid_wids))
 print(valid_wids.get('bot'), valid_wids.get('UNK'), valid_wids.get('?'))
 
 
 ntokens = len(train_wids)
 model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_fn(recon_x, x, mu, logvar):
@@ -135,18 +139,23 @@ def evaluate():
 
   return kl_loss/i , ce_loss/i 
 
- 
-def train():
+num_batches = int(len(train_loader.dataset)/args.batch_size)
+print("There are ", num_batches, " batches")
+#sys.exit()
 
+def train():
+  global ctr
+  global kl_weight
   model.train()
   kl_loss = 0
   ce_loss = 0
   for i,a in enumerate(train_loader):
-   if i < 1:
-     #print(a[0].shape,a[1].shape, i)     
+     ctr += 1
+     if i < 1:
+       print(a[0].shape,a[1].shape, i)
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
-     targets = data_full[:, 1:] 
+     targets = data_full[:, 1:]
      hidden = None
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
@@ -154,25 +163,62 @@ def train():
      model.zero_grad()
      recon_batch, mu, log_var = model(data, None)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-     loss  = kl + ce
+     #loss  = kl_weight * kl + ce
+     loss = kl_weight + ce
+
+     #optimizer.zero_grad()
      loss.backward()
+     #optimizer.step()
+
+     #if ctr % 1000 == 1:
+     #   kl_weight += 0.1 
+     #   print("KL Weight now is ", kl_weight)
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-     torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
      for p in model.parameters():
          p.data.add_(-lr, p.grad.data)
 
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-  return a, kl_loss/i , ce_loss/i 
+     # Check for Nan
+     if torch.isnan(loss):
+        print("Encountered Nan value. exiting")
+        sys.exit()
+
+  return kl_loss/i , ce_loss/i 
 
 
+logfile_name = 'log_barebones_thr010_klannealing'
+model_name = 'barebones_thr010_klannealing.pth'
+g = open(logfile_name,'w')
+g.close()
+
+best_val_loss = None
+ctr = 0
+kl_weight = 0
 
 for epoch in range(args.epochs+1):
+
+   #if epoch == 5:
+   #   optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
+   #   print("Switched to SGD ") 
    epoch_start_time = time.time()
-   a, train_klloss, train_celoss = train()
-   print(a)
+   train_klloss, train_celoss = train()
    dev_klloss,dev_celoss = evaluate()
    val_loss = dev_klloss+dev_celoss
-   print(val_loss, epoch, time.time() - epoch_start_time)
+   scheduler.step(val_loss)
+
+   # Log stuff
+   print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss, "Val KL Loss: ", dev_klloss, " Val CE Loss: ", dev_celoss, "Time: ", time.time() - epoch_start_time)
+   g = open(logfile_name,'a')
+   g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')  
+   g.close()
+
+   # Save stuff
+   if not best_val_loss or val_loss < best_val_loss:
+       with open(model_name, 'wb') as f:
+           torch.save(model, f)
+       best_val_loss = val_loss
+
