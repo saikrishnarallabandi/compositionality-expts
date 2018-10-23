@@ -9,6 +9,7 @@ import torch.onnx
 from torch.autograd import Variable
 from data_loader_barebones import *
 import model_VAE_barebones as model
+import generation_VAE_barebones as gen_evaluate
 from logger import *
 import logging
 
@@ -110,7 +111,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_fn(recon_x, x, mu, logvar):
-    #print("Shapes of recon_x and x are: ", recon_x.shape, x.shape)    
+    #print("Shapes of recon_x and x are: ", recon_x.shape, x.shape)
 
     BCE = criterion(recon_x.view(-1,ntokens), x.view(-1))
 
@@ -126,18 +127,18 @@ lr = args.lr
 
 
 def evaluate():
-  
+
   model.eval()
   kl_loss = 0
   ce_loss = 0
-  
+
   with torch.no_grad():
 
    for i,a in enumerate(valid_loader):
 
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
-     targets = data_full[:, 1:] 
+     targets = data_full[:, 1:]
      hidden = None
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
@@ -149,7 +150,7 @@ def evaluate():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-  return kl_loss/(i+1) , ce_loss/(i+1) 
+  return kl_loss/(i+1) , ce_loss/(i+1)
 
 num_batches = int(len(train_loader.dataset)/args.batch_size)
 print("There are ", num_batches, " batches")
@@ -193,7 +194,7 @@ def train():
 
      '''
      if ctr % 1000 == 1:
-     #   kl_weight += 0.1 
+     #   kl_weight += 0.1
         kl_weight = np.power(kl_weight, 1000./ctr) # np.power(0.0001,1/54) = 0.8431909292866258
         print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
      '''
@@ -206,13 +207,17 @@ def train():
 
      kl_loss += kl.item()
      ce_loss += ce.item()
-
+     if i%1000==0:
+         print (i,"Batches done, so generating")
+         #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
+         data_full_sample = train_loader.dataset[0][0]
+         gen_evaluate(model, data_full_sample, None , train_i2w)
      # Check for Nan
      if torch.isnan(loss):
         print("Encountered Nan value. exiting")
         sys.exit()
 
-  return kl_loss/(i+1) , ce_loss/(i+1) 
+  return kl_loss/(i+1) , ce_loss/(i+1)
 
 
 logfile_name = 'log_barebones'
@@ -230,7 +235,7 @@ for epoch in range(args.epochs+1):
 
    #if epoch == 5:
    #   optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-   #   print("Switched to SGD ") 
+   #   print("Switched to SGD ")
    epoch_start_time = time.time()
    train_klloss, train_celoss = train()
    dev_klloss,dev_celoss = evaluate()
@@ -240,7 +245,7 @@ for epoch in range(args.epochs+1):
    # Log stuff
    print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss, "Val KL Loss: ", dev_klloss, " Val CE Loss: ", dev_celoss, "Time: ", time.time() - epoch_start_time)
    g = open(logfile_name,'a')
-   g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')  
+   g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
    g.close()
 
    # Save stuff
@@ -248,4 +253,3 @@ for epoch in range(args.epochs+1):
        with open(model_name, 'wb') as f:
            torch.save(model, f)
        best_val_loss = val_loss
-
