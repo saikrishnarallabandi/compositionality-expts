@@ -83,7 +83,7 @@ def gumbel_argmax(logits, dim):
 
 
 def gen_evaluate(model, data_full, hidden, train_i2w):
-    print (data_full)
+    print (data_full.size()), "input size for the generation, should be a single sample"
     model.eval()
     kl_loss = 0
     ce_loss = 0
@@ -103,7 +103,7 @@ def gen_evaluate(model, data_full, hidden, train_i2w):
             recon_batch, _, _ = model(data, None)
             #output = torch.nn.functional.softmax(recon_batch, dim=2)
             #generated_token = torch.multinomial(output.squeeze(), 1)[0]
-            generated_token = gumbel_argmax(output,0)
+            generated_token = gumbel_argmax(recon_batch,0)
             #print "The shpae of generated token is ", generated_token.shape
             #print generated_token.size(), type(generated_token)
             generated_word = train_i2w[int(generated_token.squeeze())]
