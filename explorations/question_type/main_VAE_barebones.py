@@ -83,8 +83,9 @@ valid_loader = DataLoader(valid_set,
 
 valid_wids = vqa_dataset.get_wids()
 
-assert (len(valid_wids), len(train_wids))
+assert (len(valid_wids) == len(train_wids))
 
+print(valid_wids.get('bot'), valid_wids.get('UNK'), valid_wids.get('?'))
 
 
 ntokens = len(train_wids)
@@ -141,7 +142,7 @@ def train():
   kl_loss = 0
   ce_loss = 0
   for i,a in enumerate(train_loader):
-   if i < 100:
+   if i < 1:
      #print(a[0].shape,a[1].shape, i)     
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
@@ -164,13 +165,14 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-  return kl_loss/i , ce_loss/i 
+  return a, kl_loss/i , ce_loss/i 
 
 
 
 for epoch in range(args.epochs+1):
    epoch_start_time = time.time()
-   train_klloss, train_celoss = train()
+   a, train_klloss, train_celoss = train()
+   print(a)
    dev_klloss,dev_celoss = evaluate()
    val_loss = dev_klloss+dev_celoss
    print(val_loss, epoch, time.time() - epoch_start_time)
