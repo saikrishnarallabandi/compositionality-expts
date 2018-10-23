@@ -210,7 +210,7 @@ def train():
      if i%1000==0:
          print (i,"Batches done, so generating")
          #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
-         data_full_sample = train_loader.dataset[0][0]
+         data_full_sample = torch.LongTensor(train_loader.dataset[0][0])
          generation.gen_evaluate(model, data_full_sample, None , train_i2w)
      # Check for Nan
      if torch.isnan(loss):
