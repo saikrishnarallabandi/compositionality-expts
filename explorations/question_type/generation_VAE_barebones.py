@@ -83,7 +83,7 @@ def gumbel_argmax(logits, dim):
 
 
 def gen_evaluate(model, data_full, hidden, train_i2w):
-    print data_full
+    print (data_full)
     model.eval()
     kl_loss = 0
     ce_loss = 0
