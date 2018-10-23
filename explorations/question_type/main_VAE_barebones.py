@@ -9,7 +9,7 @@ import torch.onnx
 from torch.autograd import Variable
 from data_loader_barebones import *
 import model_VAE_barebones as model
-import generation_VAE_barebones as gen_evaluate
+import generation_VAE_barebones as generation
 from logger import *
 import logging
 
@@ -211,7 +211,7 @@ def train():
          print (i,"Batches done, so generating")
          #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
          data_full_sample = train_loader.dataset[0][0]
-         gen_evaluate(model, data_full_sample, None , train_i2w)
+         generation.gen_evaluate(model, data_full_sample, None , train_i2w)
      # Check for Nan
      if torch.isnan(loss):
         print("Encountered Nan value. exiting")
