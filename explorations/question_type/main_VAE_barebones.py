@@ -208,11 +208,11 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
      if i%1000==0:
-         print (i,"Batches done, so generating")
+         print (i,"Batches done. So generating ...")
          #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
          data_full_sample = torch.LongTensor(train_loader.dataset[3][0]).unsqueeze(0) # 1 X seq_length temp batch is created
-         # batch 0
-         print (data_full_sample.size(), "sample before generation")
+         # sample 3 is being used
+         #print (data_full_sample.size(), "sample before generation")
          generation.gen_evaluate(model, data_full_sample, None , train_i2w)
          model.train()
      # Check for Nan
