@@ -9,22 +9,70 @@ I tensorflow/stream_executor/dso_loader.cc:135] successfully opened CUDA library
 None 3 10
 There are  7760  batches
 torch.Size([32, 14]) torch.Size([32]) 0
-KL Weight now is  0.1
-KL Weight now is  0.2
-KL Weight now is  0.30000000000000004
-KL Weight now is  0.4
-KL Weight now is  0.5
-KL Weight now is  0.6
-KL Weight now is  0.7
-KL Weight now is  0.7999999999999999
-Aftr epoch  0  Train KL Loss:  6.628409345472764e+29 Train CE Loss:  7.470712599557699 Val KL Loss:  7.031457745384381e+29  Val CE Loss:  7.470015396162407 Time:  304.49019503593445
+KL Weight now is  tensor([0.])  and ctr is  1
+KL Weight now is  tensor([0.])  and ctr is  1001
+KL Weight now is  tensor([0.])  and ctr is  2001
+KL Weight now is  tensor([0.])  and ctr is  3001
+KL Weight now is  tensor([0.])  and ctr is  4001
+KL Weight now is  tensor([0.])  and ctr is  5001
+KL Weight now is  tensor([0.])  and ctr is  6001
+KL Weight now is  tensor([0.])  and ctr is  7001
+Aftr epoch  0  Train KL Loss:  70880.33538945712 Train CE Loss:  7.475933839819846 Val KL Loss:  83803.62003476919  Val CE Loss:  7.47542022777086 Time:  165.22786450386047
 torch.Size([32, 15]) torch.Size([32]) 0
-KL Weight now is  0.8999999999999999
-KL Weight now is  0.9999999999999999
-KL Weight now is  1.0999999999999999
-KL Weight now is  1.2
-KL Weight now is  1.3
-KL Weight now is  1.4000000000000001
-KL Weight now is  1.5000000000000002
-KL Weight now is  1.6000000000000003
-Aftr epoch  1  Train KL Loss:  7.013535808340672e+29 Train CE Loss:  7.4700390475312455 Val KL Loss:  7.020630529674865e+29  Val CE Loss:  7.470035272959581 Time:  302.0147819519043
+KL Weight now is  tensor([0.])  and ctr is  8001
+KL Weight now is  tensor([0.])  and ctr is  9001
+KL Weight now is  tensor([0.])  and ctr is  10001
+KL Weight now is  tensor([0.])  and ctr is  11001
+KL Weight now is  tensor([0.])  and ctr is  12001
+KL Weight now is  tensor([0.])  and ctr is  13001
+KL Weight now is  tensor([0.])  and ctr is  14001
+KL Weight now is  tensor([0.])  and ctr is  15001
+Aftr epoch  1  Train KL Loss:  88129.83940536014 Train CE Loss:  7.475455455475286 Val KL Loss:  90637.69099604593  Val CE Loss:  7.475114441888723 Time:  165.42618656158447
+torch.Size([32, 20]) torch.Size([32]) 0
+KL Weight now is  tensor([0.])  and ctr is  16001
+KL Weight now is  tensor([0.])  and ctr is  17001
+KL Weight now is  tensor([0.])  and ctr is  18001
+KL Weight now is  tensor([0.])  and ctr is  19001
+KL Weight now is  tensor([0.])  and ctr is  20001
+KL Weight now is  tensor([0.])  and ctr is  21001
+KL Weight now is  tensor([0.])  and ctr is  22001
+KL Weight now is  tensor([0.])  and ctr is  23001
+Aftr epoch  2  Train KL Loss:  92180.11840200602 Train CE Loss:  7.47502081677742 Val KL Loss:  93999.66817360037  Val CE Loss:  7.475185290207461 Time:  166.00670790672302
+torch.Size([32, 13]) torch.Size([32]) 0
+KL Weight now is  tensor([0.])  and ctr is  24001
+KL Weight now is  tensor([0.])  and ctr is  25001
+KL Weight now is  tensor([0.])  and ctr is  26001
+KL Weight now is  tensor([0.])  and ctr is  27001
+KL Weight now is  tensor([0.])  and ctr is  28001
+KL Weight now is  tensor([0.])  and ctr is  29001
+KL Weight now is  tensor([0.])  and ctr is  30001
+KL Weight now is  tensor([0.])  and ctr is  31001
+Aftr epoch  3  Train KL Loss:  95777.1658170661 Train CE Loss:  7.4751619369832225 Val KL Loss:  97136.72526997971  Val CE Loss:  7.475099759285574 Time:  169.0633738040924
+torch.Size([32, 14]) torch.Size([32]) 0
+KL Weight now is  tensor([0.])  and ctr is  32001
+KL Weight now is  tensor([0.])  and ctr is  33001
+KL Weight now is  tensor([0.])  and ctr is  34001
+KL Weight now is  tensor([0.])  and ctr is  35001
+KL Weight now is  tensor([0.])  and ctr is  36001
+KL Weight now is  tensor([0.])  and ctr is  37001
+KL Weight now is  tensor([0.])  and ctr is  38001
+Aftr epoch  4  Train KL Loss:  98035.97741159725 Train CE Loss:  7.475510899023118 Val KL Loss:  99218.52989204838  Val CE Loss:  7.475828764411288 Time:  171.13992476463318
+torch.Size([32, 15]) torch.Size([32]) 0
+KL Weight now is  tensor([0.])  and ctr is  39001
+KL Weight now is  tensor([0.])  and ctr is  40001
+KL Weight now is  tensor([0.])  and ctr is  41001
+KL Weight now is  tensor([0.])  and ctr is  42001
+KL Weight now is  tensor([0.])  and ctr is  43001
+KL Weight now is  tensor([0.])  and ctr is  44001
+KL Weight now is  tensor([0.])  and ctr is  45001
+KL Weight now is  tensor([0.])  and ctr is  46001
+Aftr epoch  5  Train KL Loss:  101160.41113218335 Train CE Loss:  7.4758301856452976 Val KL Loss:  102355.64565868203  Val CE Loss:  7.47584792600282 Time:  274.88473439216614
+torch.Size([32, 14]) torch.Size([32]) 0
+KL Weight now is  tensor([0.])  and ctr is  47001
+KL Weight now is  tensor([0.])  and ctr is  48001
+KL Weight now is  tensor([0.])  and ctr is  49001
+KL Weight now is  tensor([0.])  and ctr is  50001
+KL Weight now is  tensor([0.])  and ctr is  51001
+KL Weight now is  tensor([0.])  and ctr is  52001
+KL Weight now is  tensor([0.])  and ctr is  53001
+KL Weight now is  tensor([0.])  and ctr is  54001

@@ -83,6 +83,17 @@ valid_loader = DataLoader(valid_set,
                           collate_fn=collate_fn
                          )
 
+test_loader = DataLoader(valid_set,
+                          batch_size=1,
+                          shuffle=False,
+                          num_workers=4,
+                          collate_fn=collate_fn
+                         )
+
+
+#with open('train_loader.pkl', 'wb') as handle:
+#    pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 valid_wids = vqa_dataset.get_wids()
 
 assert (len(valid_wids) == len(train_wids))
@@ -137,7 +148,7 @@ def evaluate():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-  return kl_loss/i , ce_loss/i 
+  return kl_loss/(i+1) , ce_loss/(i+1) 
 
 num_batches = int(len(train_loader.dataset)/args.batch_size)
 print("There are ", num_batches, " batches")
@@ -163,22 +174,28 @@ def train():
      model.zero_grad()
      recon_batch, mu, log_var = model(data, None)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-     #loss  = kl_weight * kl + ce
-     loss = kl_weight + ce
+     #print("The value of kl_weight is ", kl_weight)
+     kl_weight = Variable(torch.from_numpy(np.array([kl_weight])), requires_grad=False).cuda().float()
+     loss  = kl_weight * kl + ce
+     #loss = kl_weight + ce
 
-     optimizer.zero_grad()
+     #optimizer.zero_grad()
      loss.backward()
      #optimizer.step()
 
-     #if ctr % 1000 == 1:
+     #kl_weight = kl_weight.pow(1.0/ctr)
+     #kl_weight = np.power(kl_weight, 1.0/ctr)
+ 
+     if ctr % 1000 == 1:
      #   kl_weight += 0.1 
-     #   print("KL Weight now is ", kl_weight)
+        kl_weight = np.power(kl_weight, 1000./ctr)
+        print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-     optimizer.step()
-     #for p in model.parameters():
-     #    p.data.add_(-lr, p.grad.data)
+     #optimizer.step()
+     for p in model.parameters():
+         p.data.add_(-lr, p.grad.data)
 
      kl_loss += kl.item()
      ce_loss += ce.item()
@@ -188,17 +205,19 @@ def train():
         print("Encountered Nan value. exiting")
         sys.exit()
 
-  return kl_loss/i , ce_loss/i 
+  return kl_loss/(i+1) , ce_loss/(i+1) 
 
 
-logfile_name = 'log_barebones_thr010_klannealing'
-model_name = 'barebones_thr010_klannealing.pth'
+logfile_name = 'log_barebones'
+model_name = 'barebones_thr010.pth'
 g = open(logfile_name,'w')
 g.close()
 
 best_val_loss = None
 ctr = 0
-kl_weight = 0
+kl_weight = 0.00001
+#kl_weight = torch.LongTensor(kl_weight)
+#https://math.stackexchange.com/questions/2198864/slow-increasing-function-between-0-and-1
 
 for epoch in range(args.epochs+1):
 

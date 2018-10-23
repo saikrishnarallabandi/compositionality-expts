@@ -26,7 +26,12 @@ class vqa_dataset(Dataset):
         word_tokens = self.remove_rarewords(file, 10)
         #sys.exit()
         f = open(file)
+        c = 0
         for line in f:
+           c+=1
+           #if c > 10: 
+               #For debugging, faster to load just 10 lines
+           #    continue
            line = word_tokenize(line.split('\n')[0])
            for i, w in enumerate(line):
                if not train_flag: # Validation Mode / Testing Mode
@@ -44,8 +49,12 @@ class vqa_dataset(Dataset):
     def remove_rarewords(self, file, freq):
        words = defaultdict(int)
        freq = int(freq)
+       c = 0
        f = open(file)
        for line in f:
+           c += 1
+           #if c > 10: # For debugging, faster to load just 10 lines
+           #    continue
            line =  line.split('\n')[0]
            line = word_tokenize(line) + ['_PAD'] + ['<sos>'] + ['<eos>'] + ["UNK"] # Punctuation and stuff
            #print(line)
