@@ -210,10 +210,11 @@ def train():
      if i%1000==0:
          print (i,"Batches done, so generating")
          #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
-         data_full_sample = torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0) # 1 X seq_length temp batch is created
-         # batch 0 
+         data_full_sample = torch.LongTensor(train_loader.dataset[3][0]).unsqueeze(0) # 1 X seq_length temp batch is created
+         # batch 0
          print (data_full_sample.size(), "sample before generation")
          generation.gen_evaluate(model, data_full_sample, None , train_i2w)
+         model.train()
      # Check for Nan
      if torch.isnan(loss):
         print("Encountered Nan value. exiting")
