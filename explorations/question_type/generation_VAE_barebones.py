@@ -119,7 +119,7 @@ def gen_evaluate(model, data_full, hidden, train_i2w):
 
 
 
-if args.generate:
+if args.generation:
 
     train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
     train_set = vqa_dataset(train_file,1,None)
