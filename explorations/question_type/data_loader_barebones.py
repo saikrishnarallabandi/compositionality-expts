@@ -29,9 +29,9 @@ class vqa_dataset(Dataset):
         c = 0
         for line in f:
            c+=1
-           #if c > 10: 
+           if c > 10:
                #For debugging, faster to load just 10 lines
-           #    continue
+               continue
            line = word_tokenize(line.split('\n')[0])
            for i, w in enumerate(line):
                if not train_flag: # Validation Mode / Testing Mode
@@ -53,8 +53,8 @@ class vqa_dataset(Dataset):
        f = open(file)
        for line in f:
            c += 1
-           #if c > 10: # For debugging, faster to load just 10 lines
-           #    continue
+           if c > 10: # For debugging, faster to load just 10 lines
+               continue
            line =  line.split('\n')[0]
            line = word_tokenize(line) + ['_PAD'] + ['<sos>'] + ['<eos>'] + ["UNK"] # Punctuation and stuff
            #print(line)
@@ -67,7 +67,7 @@ class vqa_dataset(Dataset):
             ##print('\n')
             del words[k]
        f.close()
-       return words 
+       return words
 
     def __len__(self):
         return len(self.utts)
@@ -100,7 +100,7 @@ def collate_fn(batch):
     a = np.array( [ _pad(x[0], max_input_len)  for x in batch ], dtype=np.int)
     b = np.array( [ x[1] for x in batch ], dtype=np.int)
     a_batch = torch.LongTensor(a)
-    b_batch = torch.LongTensor(b) 
+    b_batch = torch.LongTensor(b)
     input_lengths = torch.LongTensor(input_lengths)
 
     return a_batch, b_batch
@@ -109,5 +109,3 @@ def collate_fn(batch):
 def _pad(seq, max_len):
     return np.pad(seq, (0, max_len - len(seq)),
                   mode='constant', constant_values=0)
-
-
