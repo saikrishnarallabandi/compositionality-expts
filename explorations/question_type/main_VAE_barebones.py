@@ -207,7 +207,7 @@ def train():
 
      kl_loss += kl.item()
      ce_loss += ce.item()
-     if i%1000==0:
+     if ctr%1000==0:
          print (i,"Batches done. So generating ...")
          #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
          data_full_sample = torch.LongTensor(train_loader.dataset[3][0]).unsqueeze(0) # 1 X seq_length temp batch is created
