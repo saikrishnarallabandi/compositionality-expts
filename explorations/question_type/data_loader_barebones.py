@@ -29,7 +29,7 @@ class vqa_dataset(Dataset):
         c = 0
         for line in f:
            c+=1
-           if c > 10:
+           if c > 50:
                #For debugging, faster to load just 10 lines
                continue
            line = word_tokenize(line.split('\n')[0])
@@ -53,7 +53,7 @@ class vqa_dataset(Dataset):
        f = open(file)
        for line in f:
            c += 1
-           if c > 10: # For debugging, faster to load just 10 lines
+           if c > 50: # For debugging, faster to load just 10 lines
                continue
            line =  line.split('\n')[0]
            line = word_tokenize(line) + ['_PAD'] + ['<sos>'] + ['<eos>'] + ["UNK"] # Punctuation and stuff
