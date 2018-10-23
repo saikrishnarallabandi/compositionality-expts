@@ -1,33 +1,39 @@
-import os
+import os,sys
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import numpy as np
 from collections import defaultdict
 
-wids = defaultdict(lambda: len(wids))
+wids_global = defaultdict(lambda: len(wids_global))
 
 class vqa_dataset(Dataset):
 
    # Dataset for utterances and types
-    def __init__(self, file):
+    def __init__(self, file, train_flag, wids=None):
         f = open(file)
         self.utts = []
         self.types = []
+        if train_flag:
+          wids = wids_global
         wids['_PAD'] = 0
         wids['<sos>'] = 1
         wids['<eos>'] = 2
-        print(wids['<eos>'])
+        wids['UNK'] = 3
         for line in f:
            line = line.split('\n')[0].split()
-           for w in line:
-               wid = wids[w]
-               #print(wid)
+           for i, w in enumerate(line):
+               if not train_flag: # Validation Mode / Testing Mode
+                 if w in wids:
+                     pass
+                 else:
+                     line[i] = 'UNK'
+               else: # Training mode
+                    wid = wids[w]
            self.utts.append([1]  + [wids[w] for w in line] + [2])
-           #print([1]  + [self.wids[w] for w in line] + [2]) 
            if line[0] == "Is" or line[0] == 'Are':
               self.types.append(0)
-           elif line[0] == "How many":
+           elif line[0] == "How" and line[1] == "many":
               self.types.append(1)
            else:
               self.types.append(2)
@@ -39,7 +45,7 @@ class vqa_dataset(Dataset):
         return self.utts[item], self.types[item]
 
     def get_wids():
-        return wids
+        return wids_global
 
 def collate_fn(batch):
     """Create batch"""

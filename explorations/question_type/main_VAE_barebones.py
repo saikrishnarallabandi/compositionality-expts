@@ -64,15 +64,30 @@ if torch.cuda.is_available():
 ###############################################################################
 
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
-train_set = vqa_dataset(train_file)
+train_set = vqa_dataset(train_file,1,None)
 train_loader = DataLoader(train_set,
                           batch_size=args.batch_size,
                           shuffle=True,
                           num_workers=4,
                           collate_fn=collate_fn
                          )
-wids = vqa_dataset.get_wids()
-ntokens = len(wids)
+train_wids = vqa_dataset.get_wids()
+
+valid_set = vqa_dataset(train_file, 0, train_wids)
+valid_loader = DataLoader(valid_set,
+                          batch_size=args.batch_size,
+                          shuffle=True,
+                          num_workers=4,
+                          collate_fn=collate_fn
+                         )
+
+valid_wids = vqa_dataset.get_wids()
+
+assert (len(valid_wids), len(train_wids))
+
+
+
+ntokens = len(train_wids)
 model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 
@@ -90,13 +105,43 @@ def loss_fn(recon_x, x, mu, logvar):
     #print("The loss function is returning ", BCE + KLD)
     return KLD, BCE
 
-kl_loss = 0
-ce_loss = 0
 lr = args.lr
 
-start_time = time.time()
 
-for i,a in enumerate(train_loader):
+def evaluate():
+  
+  model.eval()
+  kl_loss = 0
+  ce_loss = 0
+  
+  with torch.no_grad():
+
+   for i,a in enumerate(valid_loader):
+
+     data_full = a[0]
+     data = data_full[:,0:data_full.size(1)-1]
+     targets = data_full[:, 1:] 
+     hidden = None
+     data = Variable(data).cuda()
+     targets = Variable(targets).cuda()
+
+     recon_batch, mu, log_var = model(data, None)
+     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
+     loss  = kl + ce
+
+     kl_loss += kl.item()
+     ce_loss += ce.item()
+
+  return kl_loss/i , ce_loss/i 
+
+ 
+def train():
+
+  model.train()
+  kl_loss = 0
+  ce_loss = 0
+  for i,a in enumerate(train_loader):
+   if i < 100:
      #print(a[0].shape,a[1].shape, i)     
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
@@ -119,5 +164,13 @@ for i,a in enumerate(train_loader):
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-print ( kl_loss/i , ce_loss/i )
-print(time.time() - start_time)    
+  return kl_loss/i , ce_loss/i 
+
+
+
+for epoch in range(args.epochs+1):
+   epoch_start_time = time.time()
+   train_klloss, train_celoss = train()
+   dev_klloss,dev_celoss = evaluate()
+   val_loss = dev_klloss+dev_celoss
+   print(val_loss, epoch, time.time() - epoch_start_time)
