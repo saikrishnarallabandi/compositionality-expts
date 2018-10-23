@@ -100,7 +100,7 @@ def gen_evaluate(model, data_full, hidden, train_i2w):
             original_sample.append(train_i2w[int(data[:,d])])
 
         while True:
-            recon_batch, _, _ = model(data, None)
+            recon_batch, _, _ = model(new_input_token, None)
             #output = torch.nn.functional.softmax(recon_batch, dim=2)
             #generated_token = torch.multinomial(output.squeeze(), 1)[0]
             generated_token = gumbel_argmax(recon_batch,0)
