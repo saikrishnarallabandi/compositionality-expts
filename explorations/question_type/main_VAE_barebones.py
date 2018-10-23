@@ -96,7 +96,7 @@ test_loader = DataLoader(valid_set,
 #    pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 valid_wids = vqa_dataset.get_wids()
-train_i2w =  {i:w for w,i in train_wids.iteritems()}
+train_i2w =  {i:w for w,i in train_wids.items()}
 
 assert (len(valid_wids) == len(train_wids))
 print(len(valid_wids))
