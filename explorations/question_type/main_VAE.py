@@ -8,10 +8,10 @@ import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
 import data_loader as data
-import model_VAE as model
+import model_barebones_VAE as model
 from generation_VAE import gen_evaluate
 import random
-
+from logger import *
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -30,7 +30,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=16, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -50,6 +50,8 @@ parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
 args = parser.parse_args()
 ntype_emb = 100
+
+log_flag = 0
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -71,6 +73,7 @@ print (len(corpus.test), "Samples for Test")
 ntokens = len(corpus.dictionary)
 model = model.VAEModel(args.model, ntype_emb, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=corpus.PAD_IDX)
+logger = Logger('./logs')
 
 ###############################################################################
 # Training code
@@ -107,6 +110,7 @@ def evaluate(data_source):
     ctr = 0
     #random.shuffle(data_source)
     with torch.no_grad():
+    #if True:
       for i in range(0, len(data_source)):
         ctr += 1
         data_full = data_source[i]
@@ -160,23 +164,34 @@ def train():
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
         torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+        #for name, param in model.named_parameters():
+        #  if param.requires_grad:
+        #     print (name) #, param.grad.data
+
         for p in model.parameters():
+            #print(p.grad)
             p.data.add_(-lr, p.grad.data)
 
         kl_loss += kl.item()
         ce_loss += ce.item()
         total_loss += kl + ce
 
+        if log_flag:
+            logger.scalar_summary('Train KL Loss ', kl_loss/(ctr+1) , epoch*len(corpus.train) + ctr)
+            logger.scalar_summary('Train CE Loss ', ce_loss/(ctr+1) , epoch*len(corpus.train) + ctr)
+
         #with open(args.save, 'wb') as f:
         #         torch.save(model, f)
 
         if i % 1000 == 1:
-            print ("Generation after processing ", i , " batches: " ) 
-            single_train_sample = [corpus.train[330][0].unsqueeze(0)]
-            single_train_sample_type = [corpus.train_type[330][0].unsqueeze(0)]
-            gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
+             print("Done ", i, " files" )
+        #    print ("Generation after processing ", i , " batches: " ) 
+        #    single_train_sample = [corpus.train[330][0].unsqueeze(0)]
+        #    single_train_sample_type = [corpus.train_type[330][0].unsqueeze(0)]
+        #    gen_evaluate(single_train_sample, single_train_sample_type, train_test=True)
 
 
+    print("Done training")
     return kl_loss/ctr , ce_loss/ctr
 
 
@@ -215,6 +230,13 @@ try:
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
             lr /= 4.0
+
+        if log_flag:
+            logger.scalar_summary('Train KL Loss per epoch ', train_klloss , epoch)
+            logger.scalar_summary('Train CE Loss per epoch ', train_celoss , epoch)
+            logger.scalar_summary('Dev KL Loss per epoch ', dev_klloss , epoch)
+            logger.scalar_summary('Dev CE Loss per epoch ', dev_celoss , epoch)
+
 
 except KeyboardInterrupt:
     print('-' * 89)

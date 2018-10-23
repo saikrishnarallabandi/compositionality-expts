@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import data
-import model
+from data_loader_barebones import *
+import model_VAE_barebones as model
 from logger import *
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
-parser.add_argument('--data', type=str, default='../../data',
+parser.add_argument('--data', type=str, default='../../../../data/VQA/',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
@@ -28,7 +28,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -63,26 +63,18 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data, 32)
-print (len(corpus.train), "Batches for Train ||| ", len(corpus.train)*32, "Samples of Train")
-print (len(corpus.valid), "Batches for Valid ||| ", len(corpus.valid)*32, "Samples of Valid")
-print (len(corpus.test), "Samples for Test")
-
-ntokens = len(corpus.dictionary)
+train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
+train_set = vqa_dataset(train_file)
+train_loader = DataLoader(train_set,
+                          batch_size=args.batch_size,
+                          shuffle=True,
+                          num_workers=4,
+                          collate_fn=collate_fn
+                         )
+wids = vqa_dataset.get_wids()
+ntokens = len(wids)
 model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
-criterion = nn.CrossEntropyLoss(ignore_index=corpus.PAD_IDX)
-logger = Logger('./logs')
-
-###############################################################################
-# Training code
-###############################################################################
-
-def repackage_hidden(h):
-    """Wraps hidden states in new Tensors, to detach them from their history."""
-    if type(h) == Variable:
-        return Variable(h.data).cuda()
-    else:
-        return tuple(repackage_hidden(v) for v in h)
+criterion = nn.CrossEntropyLoss(ignore_index=0)
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_fn(recon_x, x, mu, logvar):
@@ -98,127 +90,34 @@ def loss_fn(recon_x, x, mu, logvar):
     #print("The loss function is returning ", BCE + KLD)
     return KLD, BCE
 
-def evaluate(data_source):
-    # Turn on evaluation mode which disables dropout.
-    model.eval()
-    total_loss = 0.
-    ntokens = len(corpus.dictionary)
-    kl_loss = 0
-    ce_loss = 0
-    ctr = 0
-    with torch.no_grad():
-      for i in range(0, len(data_source), args.bptt):
-        ctr += 1
-        data_full = data_source[i]
-        data = data_full[:,0:data_full.size(1)-1]
-        targets = data_full[:, 1:]
-        #hidden = model.init_hidden(data.size(0))
-        hidden = None
-        data = Variable(data).cuda()
-        targets = Variable(targets).cuda()
-        recon_batch, mu, log_var = model(data, None)
-        kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-        loss = kl + ce
-        total_loss += loss.item()
-        kl_loss += kl
-        ce_loss += ce
-        #hidden = repackage_hidden(hidden)
-    print("KL ", kl_loss/ctr, "CE: ", ce_loss/ctr)
-    return kl_loss / ctr, ce_loss / ctr
-
-def train():
-    # Turn on training mode which enables dropout.
-    model.train()
-    total_loss = 0.
-    start_time = time.time()
-    ntokens = len(corpus.dictionary)
-    hidden = model.init_hidden(args.batch_size)
-    kl_loss = 0
-    ce_loss = 0
-    ctr = 1
-    for i in range(0, len(corpus.train), args.bptt):
-        ctr += 1
-        data_full = corpus.train[i]
-        data = data_full[:,0:data_full.size(1)-1]
-        targets = data_full[:, 1:]
-        #print data.size(), targets.size()
-        hidden = None
-        data = Variable(data).cuda()
-        targets = Variable(targets).cuda()
-        #hidden = repackage_hidden(hidden)
-        model.zero_grad()
-        recon_batch, mu, log_var = model(data, None)
-        #print output.size(), targets.size()
-        kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-        loss  = kl + ce
-        loss.backward()
-
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
-
-        kl_loss += kl.item()
-        ce_loss += ce.item()
-        total_loss += kl + ce
-
-        #if log_flag:
-        #    logger.scalar_summary('Train KL Loss ', kl_loss/ctr , (epoch*len(corpus.train) + ctr)
-        #    logger.scalar_summary('Train CE Loss ', train_celoss , (epoch*len(corpus.train) + ctr)
-    return kl_loss/ctr , ce_loss/ctr
-
-
-
-# Loop over epochs.
+kl_loss = 0
+ce_loss = 0
 lr = args.lr
-best_val_loss = None
 
-# At any point you can hit Ctrl + C to break out of training early.
-try:
-    for epoch in range(1, args.epochs+1):
-        epoch_start_time = time.time()
-        train_klloss, train_celoss = train()
-        #print("in train and val")
-        dev_klloss,dev_celoss = evaluate(corpus.valid)
-        val_loss = dev_klloss+dev_celoss
-        print('-' * 89)
-        #print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-        #'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-        #                                   val_loss, math.exp(val_loss)))
-        print("Epoch ", epoch, " Train KL Loss: ", train_klloss, " Train CE Loss: ", train_celoss, " Dev KL loss ", dev_klloss, " Dev CE Loss: ", dev_celoss, " in ", time.time() - epoch_start_time,  " seconds")
-        #print("end epoch, loss, ppl", epoch, val_loss.item()) #, math.exp(val_loss.item()))
-        print('-' * 89)
-        # Save the model if the validation loss is the best we've seen so far.
-        if not best_val_loss or val_loss.item() < best_val_loss:
-            with open(args.save, 'wb') as f:
-                torch.save(model, f)
-            best_val_loss = val_loss.item()
-        else:
-            # Anneal the learning rate if no improvement has been seen in the validation dataset.
-            lr /= 4.0
-        if log_flag:
-            logger.scalar_summary('Train KL Loss per epoch ', train_klloss , epoch)
-            logger.scalar_summary('Train CE Loss per epoch ', train_celoss , epoch)
-            logger.scalar_summary('Dev KL Loss per epoch ', dev_klloss , epoch)
-            logger.scalar_summary('Dev CE Loss per epoch ', dev_celoss , epoch)
+start_time = time.time()
 
+for i,a in enumerate(train_loader):
+     #print(a[0].shape,a[1].shape, i)     
+     data_full = a[0]
+     data = data_full[:,0:data_full.size(1)-1]
+     targets = data_full[:, 1:] 
+     hidden = None
+     data = Variable(data).cuda()
+     targets = Variable(targets).cuda()
+     #hidden = repackage_hidden(hidden)
+     model.zero_grad()
+     recon_batch, mu, log_var = model(data, None)
+     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
+     loss  = kl + ce
+     loss.backward()
 
-except KeyboardInterrupt:
-    print('-' * 89)
-    print('Exiting from training early')
+     # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+     torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+     for p in model.parameters():
+         p.data.add_(-lr, p.grad.data)
 
-# Load the best saved model.
-with open(args.save, 'rb') as f:
-    model = torch.load(f)
-    # after load the rnn params are not a continuous chunk of memory
-    # this makes them a continuous chunk, and will speed up forward pass
-    model.rnn.flatten_parameters()
+     kl_loss += kl.item()
+     ce_loss += ce.item()
 
-# Run on test data.
-test_klloss, test_celoss = evaluate(corpus.test)
-test_loss = test_klloss + test_celoss
-print('=' * 89)
-print("Test KL Loss: ", test_klloss, "Test_celoss: ", test_celoss)
-print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-    test_loss, math.exp(test_loss)))
-print('=' * 89)
+print ( kl_loss/i , ce_loss/i )
+print(time.time() - start_time)    

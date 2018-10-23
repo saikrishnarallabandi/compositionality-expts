@@ -8,24 +8,50 @@ import torch.nn.functional as F
 
 #logging.basicConfig(level=logging.DEBUG)
 
+class SequenceWise(nn.Module):
+    def __init__(self, module):
+        """
+        Collapses input of dim T*N*H to (T*N)*H, and applies to a module.
+        Allows handling of variable sequence lengths and minibatch sizes.
+        :param module: Module to apply input to.
+        """
+        super(SequenceWise, self).__init__()
+        self.module = module
+
+    def forward(self, x):
+        t, n = x.size(0), x.size(1)
+        x = x.contiguous().view(t * n, -1)
+        x = self.module(x)
+        x = x.contiguous().view(t, n, -1)
+        return x
+
+    def __repr__(self):
+        tmpstr = self.__class__.__name__ + ' (\n'
+        tmpstr += self.module.__repr__()
+        tmpstr += ')'
+        return tmpstr
+
 class VAEModel(nn.Module):
 
-    def __init__(self,rnn_type,ntype_emb, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
+    def __init__(self,rnn_type, ntype_emb, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False): # model.VAEModel(args.model, ntype_emb, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
        super(VAEModel, self).__init__()
-       self.embedding = nn.Embedding(ntoken, ninp)
-       self.type_embedding = nn.Embedding(3, ntype_emb)
-       self.nlatent = 8
        self.ntype_emb = ntype_emb
-       self.fc1 = nn.Linear(ninp,nhid)
-       self.fc2_a = nn.Linear(nhid, self.nlatent)
-       self.fc2_b = nn.Linear(nhid, self.nlatent)
-       self.fc3_a = nn.Linear(self.nlatent,int(self.nlatent*2))
-       self.fc3_b = nn.Linear(self.ntype_emb,int(self.ntype_emb*2))
+       self.embedding = nn.Embedding(ntoken, ninp)
+       self.nlatent = 64
+       self.fc1 = SequenceWise(nn.Linear(nhid,nhid*2))
+       self.fc2_a = SequenceWise(nn.Linear(nhid*2, self.nlatent))
+       self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))       
+       #self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent*2)))
        self.fc4 = nn.Linear(int(self.nlatent*2)+int(self.ntype_emb*2), ntoken)
        self.nlayers = nlayers
+       self.decoder_dropout = nn.Dropout(p=0.5)
+       print (self.decoder_dropout)
        self.nhid = nhid
        self.rnn_type = rnn_type
-       self.rnn = nn.LSTM(ninp, int(nhid/2), num_layers=2, bidirectional=True)
+       self.rnn = nn.LSTM(ninp, int(nhid/2), num_layers=2, bidirectional=True, batch_first=True)
+       self.type_embedding = nn.Embedding(3, ntype_emb)
+       self.fc3_a = nn.Linear(self.nlatent,int(self.nlatent*2))
+       self.fc3_b = nn.Linear(self.ntype_emb,int(self.ntype_emb*2))
 
     def encoder(self, emb, hidden):
        logging.debug("In Encoder")
@@ -51,11 +77,23 @@ class VAEModel(nn.Module):
        logging.debug("Shape of mu after encoder: {}".format(mu.shape))
        z = self.reparameterize(mu, log_var)
        logging.debug("Shape of latent representation: {}".format(z.shape))
+       if self.rnn.training:
+           #print("in training")
+           z = self.decoder_dropout(z)
+       #else:
+       #print("In Eval")
+       #    z = self.decoder_dropout(z)
+       #    #print ("training")
        decoded = self.decode(z, condition)
        logging.debug("Shape of decoder output: {}".format(decoded.shape))
        return decoded,mu,log_var
 
     def decode(self,z, c):
+       #if self.rnn.training:
+       #    print ("In training")
+       #else:
+       #    print ("In testing")
+       #z = self.decoder_dropout(z)
        h3 = F.relu(self.fc3_a(z))
        h4 =  F.relu(self.fc3_b(c))
        #print(h3.size(), h4.size())

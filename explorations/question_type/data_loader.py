@@ -21,6 +21,19 @@ class Dictionary(object):
     def __len__(self):
         return len(self.idx2word)
 
+class vqa_loader(Dataset):
+
+   # Dataset for utterances and types
+    def __init__(self, utterances, utt_types):
+        self.utts = utterances
+        self.types = utt_types
+
+    def __len__(self):
+        return len(self.utts)
+
+    def __getitem__(self, item):
+        return self.utts[i], self.types[i]
+
 
 class Corpus(object):
     def __init__(self, path, batch_size):

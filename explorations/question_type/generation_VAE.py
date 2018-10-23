@@ -116,6 +116,7 @@ def gen_evaluate(data_source, data_source_type, train_test=False):
     random.shuffle(data_source)
     print(data_source[0])
     with torch.no_grad():
+    #if True:
       for i in range(0, len(data_source), args.bptt):
         data_full = data_source[i]
         data_type  = Variable(data_source_type[i]).cuda()
