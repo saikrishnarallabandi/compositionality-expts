@@ -95,6 +95,7 @@ test_loader = DataLoader(valid_set,
 #    pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 valid_wids = vqa_dataset.get_wids()
+train_i2w =  {i:w for w,i in train_wids.iteritems()}
 
 assert (len(valid_wids) == len(train_wids))
 print(len(valid_wids))
@@ -185,11 +186,17 @@ def train():
 
      #kl_weight = kl_weight.pow(1.0/ctr)
      #kl_weight = np.power(kl_weight, 1.0/ctr)
- 
+
+     kl_weight = np.power(kl_weight, 1000./ctr) # np.power(0.0001,1/54) = 0.8431909292866258
+     if ctr % 1000 == 1:
+       print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
+
+     '''
      if ctr % 1000 == 1:
      #   kl_weight += 0.1 
-        kl_weight = np.power(kl_weight, 1000./ctr)
+        kl_weight = np.power(kl_weight, 1000./ctr) # np.power(0.0001,1/54) = 0.8431909292866258
         print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
+     '''
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
