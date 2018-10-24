@@ -221,7 +221,7 @@ def train():
      ce_loss += ce.item()
 
 
-     if i%1000==0:
+     if i%500==0:
          print (i,"Batches done, so generating")
          single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0), torch.LongTensor([train_loader.dataset[0][1]]).unsqueeze(0))
          single_train_sample = Variable(single_train_sample).cuda()
