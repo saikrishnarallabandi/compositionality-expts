@@ -185,6 +185,8 @@ print("There are ", num_batches, " batches")
 
 train_flag = 1
 
+sigmoid = nn.Sigmoid()
+
 def train():
   global ctr
   global kl_weight_loop
@@ -217,8 +219,18 @@ def train():
      ce_loss += ce.item()
 
      if ctr % 100 == 1:
-       kl_weight_loop = torch.pow(kl_weight, 30.0/ctr)
+       #kl_weight_loop = torch.pow(kl_weight, 30.0/ctr)
+       kl_weight_loop = sigmoid(kl_weight/kl_weight * ctr/10000.0)
        print("KL Weight after processing ", ctr, " batches is ", kl_weight_loop.item())
+
+       dev_klloss,dev_celoss = evaluate()
+       val_loss = dev_klloss+dev_celoss
+       scheduler.step(val_loss)
+
+       g = open(logfile_name,'a')
+       g.write(" After " + str(ctr) + " batches: Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + '\n')
+       g.close()
+       model.train()
 
   return kl_loss/(i+1) , ce_loss/(i+1)
 
