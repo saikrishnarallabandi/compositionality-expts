@@ -223,7 +223,10 @@ def train():
 
      if i%1000==0:
          print (i,"Batches done, so generating")
-         single_train_sample, single_train_sample_type = (train_loader.dataset[0][0], train_loader.dataset[0][1])
+         single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]), torch.LongTensor(train_loader.dataset[0][1]))
+         single_train_sample = Variable(single_train_sample).cuda()
+         single_train_sample_type = Variable(single_train_sample_type).cuda()
+         print (single_train_sample.size(), single_train_sample_type.size(), "before generation")
          generation.gen_evaluate(model, single_train_sample, None, train_i2w, single_train_sample_type)
          model.train()
 

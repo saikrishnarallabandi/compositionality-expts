@@ -93,6 +93,8 @@ def gen_evaluate(model, data_full, hidden, train_i2w, data_type):
     original_sample = []
     gen_sample = []
     with torch.no_grad():
+        
+
         data = data_full[:,0:data_full.size(1)-1]
         targets = data_full[:, 1:]
         data = Variable(data).cuda()
