@@ -205,8 +205,8 @@ def train():
      recon_batch, mu, log_var = model(data, None)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
      
-     loss  = kl_weight_loop * kl + ce
-     #loss = kl + ce
+     #loss  = kl_weight_loop * kl + ce
+     loss = kl + ce
      loss.backward()
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
@@ -216,11 +216,8 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-     if ctr % 100 == 1:
-       kl_weight_loop = torch.pow(kl_weight, 30.0/ctr)
-       print("KL Weight after processing ", ctr, " batches is ", kl_weight_loop.item())
-
   return kl_loss/(i+1) , ce_loss/(i+1)
+
 
 
 logfile_name = 'log_klannealing'
