@@ -12,7 +12,10 @@ import model_VAE_barebones as model
 import generation_VAE_barebones as generation
 from logger import *
 import logging
+import pickle
+import json
 
+script_start_time = time.time()
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -31,7 +34,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+parser.add_argument('--batch_size', type=int, default=256, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
@@ -66,6 +69,7 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
+'''
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
 train_set = vqa_dataset(train_file,1,None)
 train_loader = DataLoader(train_set,
@@ -91,16 +95,39 @@ test_loader = DataLoader(valid_set,
                           collate_fn=collate_fn
                          )
 
+# https://stackoverflow.com/questions/11218477/how-can-i-use-pickle-to-save-a-dict
+with open('train_loader.pkl', 'wb') as handle:
+    pickle.dump(train_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-#with open('train_loader.pkl', 'wb') as handle:
-#    pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('valid_loader.pkl', 'wb') as handle:
+    pickle.dump(valid_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-valid_wids = vqa_dataset.get_wids()
+with open('test_loader.pkl', 'wb') as handle:
+    pickle.dump(test_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
+
+'''
+
+with open('train_loader.pkl', 'rb') as handle:
+    train_loader = pickle.load(handle)
+
+with open('valid_loader.pkl', 'rb') as handle:
+    valid_loader = pickle.load(handle)
+
+with open('test_loader.pkl', 'rb') as handle:
+    test_loader = pickle.load(handle)
+
+train_wids = json.load(open('train_wids.json'))
+
+#valid_wids = vqa_dataset.get_wids()
 train_i2w =  {i:w for w,i in train_wids.items()}
 
-assert (len(valid_wids) == len(train_wids))
-print(len(valid_wids))
-print(valid_wids.get('bot'), valid_wids.get('UNK'), valid_wids.get('?'))
+print("Loaded stuff in ", time.time() - script_start_time)
+
+#assert (len(valid_wids) == len(train_wids))
+#print(len(valid_wids))
+#print(valid_wids.get('bot'), valid_wids.get('UNK'), valid_wids.get('?'))
 
 
 ntokens = len(train_wids)
@@ -156,81 +183,57 @@ num_batches = int(len(train_loader.dataset)/args.batch_size)
 print("There are ", num_batches, " batches")
 #sys.exit()
 
+train_flag = 1
+
 def train():
   global ctr
-  global kl_weight
+  global kl_weight_loop
   model.train()
   kl_loss = 0
   ce_loss = 0
   for i,a in enumerate(train_loader):
      ctr += 1
-     if i < 1:
-       print(a[0].shape,a[1].shape, i)
+
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
      targets = data_full[:, 1:]
      hidden = None
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
-     #hidden = repackage_hidden(hidden)
-     model.zero_grad()
+
+     optimizer.zero_grad()
      recon_batch, mu, log_var = model(data, None)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-     #print("The value of kl_weight is ", kl_weight)
-     kl_weight = Variable(torch.from_numpy(np.array([kl_weight])), requires_grad=False).cuda().float()
-     loss  = kl_weight * kl + ce
-     #loss = kl_weight + ce
-
-     #optimizer.zero_grad()
+     
+     loss  = kl_weight_loop * kl + ce
+     #loss = kl + ce
      loss.backward()
-     #optimizer.step()
-
-     #kl_weight = kl_weight.pow(1.0/ctr)
-     #kl_weight = np.power(kl_weight, 1.0/ctr)
-
-     kl_weight = np.power(kl_weight, 1000./ctr) # np.power(0.0001,1/54) = 0.8431909292866258
-     if ctr % 1000 == 1:
-       print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
-
-     '''
-     if ctr % 1000 == 1:
-     #   kl_weight += 0.1
-        kl_weight = np.power(kl_weight, 1000./ctr) # np.power(0.0001,1/54) = 0.8431909292866258
-        print("KL Weight now is ", kl_weight, " and ctr is ", ctr)
-     '''
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-     #optimizer.step()
-     for p in model.parameters():
-         p.data.add_(-lr, p.grad.data)
+     optimizer.step()
 
      kl_loss += kl.item()
      ce_loss += ce.item()
-     if ctr%1000==0:
-         print (i,"Batches done. So generating ...")
-         #single_train_sample, single_train_sample_type = (, train_loader.dataset[0][1])
-         data_full_sample = torch.LongTensor(train_loader.dataset[3][0]).unsqueeze(0) # 1 X seq_length temp batch is created
-         # sample 3 is being used
-         #print (data_full_sample.size(), "sample before generation")
-         generation.gen_evaluate(model, data_full_sample, None , train_i2w)
-         model.train()
-     # Check for Nan
-     if torch.isnan(loss):
-        print("Encountered Nan value. exiting")
-        sys.exit()
+
+     if ctr % 100 == 1:
+       kl_weight_loop = torch.pow(kl_weight, 30.0/ctr)
+       print("KL Weight after processing ", ctr, " batches is ", kl_weight_loop.item())
 
   return kl_loss/(i+1) , ce_loss/(i+1)
 
 
-logfile_name = 'log_barebones'
-model_name = 'barebones_thr010.pth'
+logfile_name = 'log_klannealing'
+model_name = 'klannealing_thr010.pth'
 g = open(logfile_name,'w')
 g.close()
 
 best_val_loss = None
 ctr = 0
-kl_weight = 0.00001
+kl_weight = 0.0001
+kl_weight = Variable(torch.from_numpy(np.array([kl_weight])), requires_grad=False).cuda().float()
+kl_weight_loop = kl_weight
+
 #kl_weight = torch.LongTensor(kl_weight)
 #https://math.stackexchange.com/questions/2198864/slow-increasing-function-between-0-and-1
 
@@ -244,7 +247,8 @@ for epoch in range(args.epochs+1):
    dev_klloss,dev_celoss = evaluate()
    val_loss = dev_klloss+dev_celoss
    scheduler.step(val_loss)
-
+   #print(time.time() - epoch_start_time)
+   
    # Log stuff
    print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss, "Val KL Loss: ", dev_klloss, " Val CE Loss: ", dev_celoss, "Time: ", time.time() - epoch_start_time)
    g = open(logfile_name,'a')
