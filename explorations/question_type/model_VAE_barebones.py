@@ -39,7 +39,7 @@ class VAEModel(nn.Module):
        super(VAEModel, self).__init__()
        self.embedding = nn.Embedding(ntoken, ninp)
        self.nlatent = 128
-       self.ntype_emb = 30
+       self.ntype_emb = 32
        self.fc1 = SequenceWise(nn.Linear(nhid,nhid*2))
        self.fc2_a = SequenceWise(nn.Linear(nhid*2, self.nlatent))
        self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))
