@@ -83,7 +83,7 @@ class VAEModel(nn.Module):
        z = self.reparameterize(mu, log_var)
        logging.debug("Shape of latent representation: {}".format(z.shape))
 
-       condition = self.condition_embedding(input_type) # batch X 1 X input_emb
+       condition = self.condition_embedding(condition) # batch X 1 X input_emb
        print(condition.size(), "size of condition after embedding")
 
        decoded = self.decode(z, condition)
