@@ -12,6 +12,9 @@ import model_VAE_barebones as model
 from logger import *
 import logging
 
+import pickle
+import json
+
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -143,7 +146,7 @@ if args.generation:
     # Load best model
     with open(args.save, 'rb') as f:
         model = torch.load(f)
-        
+
     # Enumerate through the test data
     for i,a in enumerate(test_loader):
       data_full = a[0]
