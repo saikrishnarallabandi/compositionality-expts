@@ -39,20 +39,28 @@ class VAEModel(nn.Module):
        super(VAEModel, self).__init__()
        self.embedding = nn.Embedding(ntoken, ninp)
        self.nlatent = 128
+       self.ntype_emb = 30
        self.fc1 = SequenceWise(nn.Linear(nhid,nhid*2))
        self.fc2_a = SequenceWise(nn.Linear(nhid*2, self.nlatent))
-       self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))       
-       self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent*2)))
-       self.fc4 = SequenceWise(nn.Linear(int(self.nlatent*2), ntoken))
+       self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))
+       self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent/2)))
+       self.fc4 = SequenceWise(nn.Linear(int(self.nlatent/2), ntoken))
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
        self.rnn = nn.LSTM(ninp, int(nhid/2), num_layers=2, bidirectional=True, batch_first=True)
 
+       # conditioning layers
+       #self.fc5_a = nn.Linear(self.nlatent,int(self.nlatent/2))
+       self.condition_embedding = nn.Embedding(3, self.ntype_emb)
+       self.fc5 = SequenceWise(nn.Linear(self.ntype_emb,int(self.ntype_emb/2)))
+       #= nn.Linear(self.ntype_emb,int(self.ntype_emb/2))
+
+
     def encoder(self, emb, hidden):
        logging.debug("In Encoder")
        output, hidden = self.rnn(emb, hidden)
-       
+
        logging.debug("Shape of output from LSTM: {}".format(output.shape))
 
        h1 = F.relu(self.fc1(output))
@@ -63,9 +71,9 @@ class VAEModel(nn.Module):
     def reparameterize(self, mu, log_var):
        std = torch.exp(0.5*log_var)
        eps = torch.rand_like(std)
-       return eps.mul(std).add_(mu) 
+       return eps.mul(std).add_(mu)
 
-    def forward(self,x,hidden):
+    def forward(self,x,hidden, condition):
        logging.debug("Shape of input to VAELM is {}".format(x.shape)) # [35, 20]
        embedding = self.embedding(x) # [35, 20, 200]
        logging.debug("Shape of embedding: {}".format(embedding.shape))
@@ -74,15 +82,23 @@ class VAEModel(nn.Module):
 
        z = self.reparameterize(mu, log_var)
        logging.debug("Shape of latent representation: {}".format(z.shape))
-       decoded = self.decode(z)
-       logging.debug("Shape of decoder output: {}".format(decoded.shape))       
+
+       condition = self.condition_embedding(input_type) # batch X 1 X input_emb
+       print(condition.size(), "size of condition after embedding")
+
+       decoded = self.decode(z, condition)
+       logging.debug("Shape of decoder output: {}".format(decoded.shape))
        return decoded,mu,log_var
 
-    def decode(self,z):
+    def decode(self,z, c):
        h3 = F.relu(self.fc3(z))
+       h4 = F.relu(self.fc5(c))
+       print("latent after relu", h3.size())
+       print("condition after relu", h4.size())
+       exit(1)
        return torch.sigmoid(self.fc4(h3))
 
-        
+
     def init_hidden(self, bsz):
         weight = next(self.parameters())
         temp1 = torch.nn.Parameter(torch.zeros(self.nlayers, bsz, self.nhid).cuda())
@@ -158,4 +174,3 @@ class RNNModel(nn.Module):
         #print (type(temp1))
         if self.rnn_type == 'LSTM':
             return temp
-

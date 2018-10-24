@@ -198,13 +198,14 @@ def train():
      data = data_full[:,0:data_full.size(1)-1]
      targets = data_full[:, 1:]
      hidden = None
+     data_type =  Variable(a[1]).cuda()
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
 
      optimizer.zero_grad()
-     recon_batch, mu, log_var = model(data, None)
+     recon_batch, mu, log_var = model(data, None, data_type)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-     
+
      #loss  = kl_weight_loop * kl + ce
      loss = kl + ce
      loss.backward()
@@ -245,7 +246,7 @@ for epoch in range(args.epochs+1):
    val_loss = dev_klloss+dev_celoss
    scheduler.step(val_loss)
    #print(time.time() - epoch_start_time)
-   
+
    # Log stuff
    print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss, "Val KL Loss: ", dev_klloss, " Val CE Loss: ", dev_celoss, "Time: ", time.time() - epoch_start_time)
    g = open(logfile_name,'a')
