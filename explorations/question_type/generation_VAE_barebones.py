@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-from data_loader_barebones import *
 import model_VAE_barebones as model
 from logger import *
 import logging

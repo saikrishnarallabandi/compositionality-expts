@@ -7,13 +7,13 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-from data_loader_barebones import *
 import model_VAE_barebones as model
 import generation_VAE_barebones as generation
 from logger import *
 import logging
 import pickle
 import json
+import numpy as np
 
 script_start_time = time.time()
 
@@ -56,6 +56,7 @@ args = parser.parse_args()
 
 
 log_flag = 1
+generation_flag = 0
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -69,7 +70,6 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
-'''
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
 train_set = vqa_dataset(train_file,1,None)
 train_loader = DataLoader(train_set,
@@ -107,7 +107,7 @@ with open('test_loader.pkl', 'wb') as handle:
 
 json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
 
-'''
+sys.exit()
 
 with open('train_loader.pkl', 'rb') as handle:
     train_loader = pickle.load(handle)
@@ -221,7 +221,7 @@ def train():
      ce_loss += ce.item()
 
 
-     if i%500==0:
+     if i%500==0 and generation_flag:
          print (i,"Batches done, so generating")
          single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0), torch.LongTensor([train_loader.dataset[0][1]]).unsqueeze(0))
          single_train_sample = Variable(single_train_sample).cuda()
