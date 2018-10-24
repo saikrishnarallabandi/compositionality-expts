@@ -220,6 +220,8 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
+     
+
   return kl_loss/(i+1) , ce_loss/(i+1)
 
 

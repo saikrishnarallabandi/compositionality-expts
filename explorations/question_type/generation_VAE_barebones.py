@@ -123,45 +123,30 @@ def gen_evaluate(model, data_full, hidden, train_i2w, data_type):
 
 if args.generation:
 
-    train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
-    train_set = vqa_dataset(train_file,1,None)
-    train_loader = DataLoader(train_set,
-                              batch_size=args.batch_size,
-                              shuffle=True,
-                              num_workers=4,
-                              collate_fn=collate_fn
-                             )
-    train_wids = vqa_dataset.get_wids()
+    with open('train_loader.pkl', 'rb') as handle:
+        train_loader = pickle.load(handle)
 
-    valid_set = vqa_dataset(train_file, 0, train_wids)
-    valid_loader = DataLoader(valid_set,
-                              batch_size=args.batch_size,
-                              shuffle=True,
-                              num_workers=4,
-                              collate_fn=collate_fn
-                             )
+    with open('valid_loader.pkl', 'rb') as handle:
+        valid_loader = pickle.load(handle)
 
+    with open('test_loader.pkl', 'rb') as handle:
+        test_loader = pickle.load(handle)
 
-    test_loader = DataLoader(valid_set,
-                              batch_size=1,
-                              shuffle=False,
-                              num_workers=4,
-                              collate_fn=collate_fn
-                             )
+    train_wids = json.load(open('train_wids.json'))
 
-    valid_wids = vqa_dataset.get_wids()
-
-    assert (len(valid_wids) == len(train_wids))
-    print(len(valid_wids))
-    print(valid_wids.get('bot'), valid_wids.get('UNK'), valid_wids.get('?'))
+    #valid_wids = vqa_dataset.get_wids()
+    train_i2w =  {i:w for w,i in train_wids.items()}
 
     ntokens = len(train_wids)
+
+    print("Loaded stuff in ", time.time() - script_start_time)
     # Load best model
     with open(args.save, 'rb') as f:
         model = torch.load(f)
+        
     # Enumerate through the test data
     for i,a in enumerate(test_loader):
       data_full = a[0]
       data_type = a[1]
       hidden = None
-      gen_evaluate(model, data_full, hidden, data_type)
+      gen_evaluate( model, data_full, hidden, train_i2w, data_type)
