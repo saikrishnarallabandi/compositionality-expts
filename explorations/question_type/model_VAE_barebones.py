@@ -85,7 +85,7 @@ class VAEModel(nn.Module):
        logging.debug("Shape of latent representation: {}".format(z.shape))
 
        condition = self.condition_embedding(condition).unsqueeze(1) # batch X 1 X input_emb
-       print(condition.size(), "size of condition after embedding")
+       #print(condition.size(), "size of condition after embedding")
 
        decoded = self.decode(z, condition)
        logging.debug("Shape of decoder output: {}".format(decoded.shape))
@@ -96,7 +96,7 @@ class VAEModel(nn.Module):
        h4 = F.relu(self.fc5(c)) #  [256, 1, 15]
 
        h4 = h4.expand(h3.size(0),h3.size(1),h4.size(2))
-       print(h4.size(), "expanded condition size")
+       #print(h4.size(), "expanded condition size")
 
        h5 = torch.cat((h3,h4), dim=2)
 
