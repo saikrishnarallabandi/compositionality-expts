@@ -198,6 +198,7 @@ def train():
      data = data_full[:,0:data_full.size(1)-1]
      targets = data_full[:, 1:]
      hidden = None
+     print ("type is", a[1], type(a[1]))
      data_type =  Variable([a[1]]).cuda()
      print (data_type.size(), "is size of the condtion")
      data = Variable(data).cuda()
