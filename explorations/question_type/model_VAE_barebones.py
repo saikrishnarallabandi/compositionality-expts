@@ -44,7 +44,7 @@ class VAEModel(nn.Module):
        self.fc2_a = SequenceWise(nn.Linear(nhid*2, self.nlatent))
        self.fc2_b = SequenceWise(nn.Linear(nhid*2, self.nlatent))
        self.fc3 = SequenceWise(nn.Linear(self.nlatent,int(self.nlatent/2)))
-       self.fc4 = SequenceWise(nn.Linear(int(self.nlatent/2), ntoken))
+
        self.nlayers = nlayers
        self.nhid = nhid
        self.rnn_type = rnn_type
@@ -52,6 +52,7 @@ class VAEModel(nn.Module):
 
        # conditioning layers
        #self.fc5_a = nn.Linear(self.nlatent,int(self.nlatent/2))
+       self.fc4 = SequenceWise(nn.Linear(int(self.nlatent/2)+int(self.ntype_emb/2), ntoken))  # combines the two
        self.condition_embedding = nn.Embedding(3, self.ntype_emb)
        self.fc5 = SequenceWise(nn.Linear(self.ntype_emb,int(self.ntype_emb/2)))
        #= nn.Linear(self.ntype_emb,int(self.ntype_emb/2))
@@ -91,12 +92,18 @@ class VAEModel(nn.Module):
        return decoded,mu,log_var
 
     def decode(self,z, c):
-       h3 = F.relu(self.fc3(z))
-       h4 = F.relu(self.fc5(c))
-       print("latent after relu", h3.size())
-       print("condition after relu", h4.size())
-       exit(1)
-       return torch.sigmoid(self.fc4(h3))
+       h3 = F.relu(self.fc3(z)) # [256, 16, 64] -> batch X seq X emb
+       h4 = F.relu(self.fc5(c)) #  [256, 1, 15]
+
+       h4 = h4.expand(h3.size(0),h3.size(1),h4.size(2))
+       print(h4.size(), "expanded condition size")
+
+       h5 = torch.cat((h3,h4), dim=2)
+
+       #print("latent after relu", h3.size())
+       #print("condition after relu", h4.size())
+       #exit(1)
+       return torch.sigmoid(self.fc4(h5))
 
 
     def init_hidden(self, bsz):
