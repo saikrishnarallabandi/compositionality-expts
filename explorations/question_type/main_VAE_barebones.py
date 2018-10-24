@@ -164,13 +164,14 @@ def evaluate():
    for i,a in enumerate(valid_loader):
 
      data_full = a[0]
+     data_type =  Variable(a[1]).cuda()
      data = data_full[:,0:data_full.size(1)-1]
      targets = data_full[:, 1:]
      hidden = None
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
 
-     recon_batch, mu, log_var = model(data, None)
+     recon_batch, mu, log_var = model(data, None, data_type)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
      loss  = kl + ce
 
