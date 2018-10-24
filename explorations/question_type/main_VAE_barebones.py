@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
 import model_VAE_barebones as model
+from data_loader_barebones import *
 import generation_VAE_barebones as generation
 from logger import *
 import logging
@@ -71,6 +72,7 @@ if torch.cuda.is_available():
 ###############################################################################
 
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
+valid_file = '/home/ubuntu/projects/multimodal/data/VQA/val2014.questions.txt'
 train_set = vqa_dataset(train_file,1,None)
 train_loader = DataLoader(train_set,
                           batch_size=args.batch_size,
@@ -80,7 +82,7 @@ train_loader = DataLoader(train_set,
                          )
 train_wids = vqa_dataset.get_wids()
 
-valid_set = vqa_dataset(train_file, 0, train_wids)
+valid_set = vqa_dataset(valid_file, 0, train_wids)
 valid_loader = DataLoader(valid_set,
                           batch_size=args.batch_size,
                           shuffle=True,
