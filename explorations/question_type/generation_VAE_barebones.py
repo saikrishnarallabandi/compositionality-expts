@@ -82,7 +82,7 @@ def gumbel_argmax(logits, dim):
 
 
 
-def gen_evaluate(model, data_full, hidden, train_i2w):
+def gen_evaluate(model, data_full, hidden, train_i2w, data_type):
     #print (data_full.size()), "input size for the generation, should be a single sample"
     model.eval()
     kl_loss = 0
@@ -94,13 +94,13 @@ def gen_evaluate(model, data_full, hidden, train_i2w):
         targets = data_full[:, 1:]
         data = Variable(data).cuda()
         targets = Variable(targets).cuda()
-
+        data_type =  Variable(data_type).cuda()
         new_input_token = data[:,0].unsqueeze(1) # <SOS> token
         for d in range(data.size(1)):
             original_sample.append(train_i2w[int(data[:,d])])
 
         while True:
-            recon_batch, _, _ = model(new_input_token, None)
+            recon_batch, _, _ = model(new_input_token, None, data_type)
             #output = torch.nn.functional.softmax(recon_batch, dim=2)
             #generated_token = torch.multinomial(output.squeeze(), 1)[0]
             generated_token = gumbel_argmax(recon_batch,0)
@@ -162,5 +162,6 @@ if args.generation:
     # Enumerate through the test data
     for i,a in enumerate(test_loader):
       data_full = a[0]
+      data_type = a[1]
       hidden = None
-      gen_evaluate(model, data_full, hidden)
+      gen_evaluate(model, data_full, hidden, data_type)
