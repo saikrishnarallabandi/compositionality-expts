@@ -220,7 +220,12 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-     
+
+     if i%1000==0:
+         print (i,"Batches done, so generating")
+         single_train_sample, single_train_sample_type = (train_loader.dataset[0][0], train_loader.dataset[0][1])
+         gen_evaluate(model, single_train_sample, None, train_i2w, single_train_sample_type)
+         model.train()
 
   return kl_loss/(i+1) , ce_loss/(i+1)
 

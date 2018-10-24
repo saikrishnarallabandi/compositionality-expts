@@ -142,7 +142,7 @@ if args.generation:
 
     ntokens = len(train_wids)
 
-    print("Loaded stuff in ", time.time() - script_start_time)
+    #print("Loaded stuff in ", time.time() - script_start_time)
     # Load best model
     with open(args.save, 'rb') as f:
         model = torch.load(f)
