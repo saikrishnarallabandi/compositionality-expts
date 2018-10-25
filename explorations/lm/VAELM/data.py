@@ -20,7 +20,7 @@ class Corpus(object):
     def __init__(self, path, batch_size):
         self.dictionary = Dictionary()
         self.PAD_IDX = self.dictionary.add_word('PAD')
-        #print "init"
+        print(path)
         self.train = self.tokenize(os.path.join(path, 'train2014.questions.txt'), batch_size)
         self.valid = self.tokenize(os.path.join(path, 'val2014.questions.txt'), batch_size)
         self.test = self.tokenize(os.path.join(path, 'val2014.questions.txt'), 1)

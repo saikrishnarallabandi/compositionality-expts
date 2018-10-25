@@ -57,7 +57,7 @@ args = parser.parse_args()
 
 
 log_flag = 1
-generation_flag = 0
+generation_flag = 1
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -70,7 +70,7 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-
+"""
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
 valid_file = '/home/ubuntu/projects/multimodal/data/VQA/val2014.questions.txt'
 train_set = vqa_dataset(train_file,1,None)
@@ -108,8 +108,9 @@ with open('test_loader.pkl', 'wb') as handle:
     pickle.dump(test_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
+"""
 
-sys.exit()
+#sys.exit()
 
 with open('train_loader.pkl', 'rb') as handle:
     train_loader = pickle.load(handle)
@@ -229,7 +230,7 @@ def train():
          single_train_sample = Variable(single_train_sample).cuda()
          single_train_sample_type = Variable(single_train_sample_type).cuda()
          print (single_train_sample.size(), single_train_sample_type.size(), "before generation")
-         generation.gen_evaluate(model, single_train_sample, None, train_i2w, single_train_sample_type)
+         generation.gen_evaluate(model, single_train_sample, None, train_i2w, train_wids, single_train_sample_type)
          model.train()
 
   return kl_loss/(i+1) , ce_loss/(i+1)
