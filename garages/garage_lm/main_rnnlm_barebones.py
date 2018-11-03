@@ -199,7 +199,7 @@ def train():
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
      optimizer.zero_grad()
-     model.zero_grad()
+     model.zero_grad() # This line is my madness gone crazy
      output, hidden  = model(data, None)
      print("Shape of output, data and target: ", output.shape, data.shape, targets.shape, length_desired)
      loss = criterion(output.view(-1, ntokens), targets.view(-1))
@@ -213,6 +213,7 @@ def train():
      optimizer.step()
      optimizer.zero_grad()
 
+     # https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741
      try:
        for obj in gc.get_objects():
          if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
@@ -220,6 +221,7 @@ def train():
      except OSError:
        pass
 
+     # https://discuss.pytorch.org/t/how-to-print-models-parameters-with-its-name-and-requires-grad-value/10778  
      for name, param in model.named_parameters():
         if param.requires_grad:
            print ( name, param.data.shape)
