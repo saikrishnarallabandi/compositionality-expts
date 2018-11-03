@@ -199,7 +199,7 @@ def train():
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
      optimizer.zero_grad()
-     model.zero_grad()
+     model.zero_grad() # This line is my madness gone crazy
      output, hidden  = model(data, None)
      print("Shape of output, data and target: ", output.shape, data.shape, targets.shape, length_desired)
      loss = criterion(output.view(-1, ntokens), targets.view(-1))
