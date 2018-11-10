@@ -12,6 +12,7 @@ import torch
 from torch.autograd import Variable
 from collections import defaultdict
 import torch.nn.functional as F
+from sklearn.metrics import classification_report, accuracy_score
 
 print_flag = 0
 
@@ -22,6 +23,26 @@ coco_train_captions_file = 'image_caption_train.txt_nospaces'
 coco_train_captions_file_nofilenames = 'image_caption_train.txt_nospaces_nofilenames'
 image_dir = ''
 wids_global = defaultdict(lambda: len(wids_global))
+
+
+def sample_gumbel(shape, eps=1e-10, out=None):
+   """
+   Sample from Gumbel(0, 1)
+   based on
+   https://github.com/ericjang/gumbel-softmax/blob/3c8584924603869e90ca74ac20a6a03d99a91ef9/Categorical%20VAE.ipynb ,
+   (MIT license)
+   """
+   U = out.resize_(shape).uniform_() if out is not None else torch.rand(shape)
+   return - torch.log(eps - torch.log(U + eps))
+
+def gumbel_argmax(logits, dim):
+   # Draw from a multinomial distribution efficiently
+   #print("Shape of gumbel input: ", logits.shape)
+   return logits + sample_gumbel(logits.size(), out=logits.data.new())
+   #sys.exit()
+   return torch.max(logits + sample_gumbel(logits.size(), out=logits.data.new()), dim)[1]
+
+
 
 
 
@@ -51,7 +72,7 @@ class jointvqacaptionsdataset(Dataset):
            questions.append(line[3])
            question_types.append(line[4])
            answer_types.append(line[5])
-           answers.append(line[6])
+           answers.append(line[7]) # Taking max instead of union
         return image_paths, image_ids, question_ids, questions, question_types, answer_types, answers
 
 
@@ -59,6 +80,8 @@ class jointvqacaptionsdataset(Dataset):
 jvcd = jointvqacaptionsdataset(vqa_train_gold_file,coco_train_captions_file,image_dir)
 questions_train = jvcd.questions
 answers_train = jvcd.answers
+#answers_train = jvcd.answer_types
+#answertypes_train = jvcd.answer_types
 
 questions_wids = defaultdict(lambda: len(questions_wids))
 questions_wids['_PAD'] = 0
@@ -91,6 +114,8 @@ assert len(trainquestions_ints) == len(trainanswer_ints)
 jvcd = jointvqacaptionsdataset(vqa_val_gold_file,coco_train_captions_file,image_dir)
 questions_val = jvcd.questions
 answers_val = jvcd.answers
+answers_val = jvcd.answer_types
+
 valquestions_ints = []
 for q in questions_val: # sorry for varirable names. i am tired. will change later.
     l = []
@@ -118,7 +143,7 @@ print("Length of answer_wids: ", len(answer_wids))
 print("Length of question_wids: ", len(questions_wids))
 #sys.exit()
 
-
+'''
 np.save('train_questions.npy', trainquestions_ints)
 np.save('train_answers.npy', trainanswer_ints)
 np.save('val_questions.npy', valquestions_ints)
@@ -128,8 +153,10 @@ with open('question_wids.json', 'w') as outfile:
             json.dump(questions_wids, outfile)
 with open('answers_wids.json', 'w') as outfile:
             json.dump(answer_wids, outfile)
+'''
 
-sys.exit()
+question_i2w =  {i:w for w,i in questions_wids.items()}
+answer_i2w = {i:w for w,i in answer_wids.items()}
 
 class jointvqacaptions_dataset(Dataset):
 
@@ -226,6 +253,8 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 def val():
   model.eval()
   total_loss = 0
+  y_true = []
+  y_predicted = []
   for i, data in enumerate(val_loader):
     question, answer = data[0], data[2]
     question, answer = Variable(question), Variable(answer)
@@ -239,11 +268,19 @@ def val():
         print("Shape of predicted answer is ", answer_predicted.shape, " and that of original answer was ", answer.shape)        
     loss = criterion(answer_predicted.view(-1, num_answerclasses), answer.view(-1))
     total_loss += loss.item()
-
-    if i % 1000 == 1:
-  
-       print(" Val Loss after ", i , " updates: ", total_loss/(i+1))
-  return total_loss / ( i + 1 ) 
+    answer_predicted = answer_predicted.reshape(answer.shape[0], num_answerclasses)
+    c = gumbel_argmax(answer_predicted,0)
+    c = torch.max(c,-1)[1]
+    c = c.cpu().detach().numpy().tolist()
+    answer = answer.detach().cpu().numpy()
+    if print_flag:
+       print(" Shape of c: ",  c)
+    w= []
+    for (a,b) in zip(c, answer):
+       y_predicted.append(a)
+       y_true.append(b)
+  print( accuracy_score(y_true, y_predicted))
+  return total_loss / ( i + 1 )
 
 
 def train():
@@ -270,11 +307,12 @@ def train():
     optimizer.step()
 
     if i % 1000 == 1:
-
+       #val_loss = val()
+       #model.train()
        print(" Train Loss after ", i , " updates: ", total_loss/(i+1))
   return total_loss/(i+1)
 
-for epoch in range(3):
+for epoch in range(30):
    train_loss = train()
    val_loss = val()
    print("After epoch ", epoch, " train loss: ", train_loss, " val loss: ", val_loss)
