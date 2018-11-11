@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from sklearn.metrics import classification_report, accuracy_score
 
 print_flag = 0
-logfile_name = 'log_modelpredictions_questionsonly'
+logfile_name = 'log_modelpredictions_questions+image'
 hk = open(logfile_name,'w')
 hk.close()
 
@@ -86,6 +86,9 @@ answer_i2w = {i:w for w,i in answer_wids.items()}
 print("The number of question classes: ", len(question_i2w.keys()))
 print("The number of answer classes: ", len(answer_i2w.keys()))
 
+with open('imageid2features_val.pkl', 'rb') as f:
+   imageid2features_val = pickle.load(f)
+
 unk_id = answer_wids['<unk>']
 valquestion_ints = []
 valanswer_ints = []
@@ -96,6 +99,7 @@ for v in val_dict:
    if len(v.keys()) > 0:
     question = v['question_str']
     answer = v['valid_answers'][0]
+    image_id = v['image_name'] + '.jpg'
     l = []
     for q in question.split():
         if q in questions_wids: 
@@ -109,6 +113,8 @@ for v in val_dict:
     else:
        k_l = unk_id   
     valanswer_ints.append(k_l)
+    valimage_ids.append(image_id)
+    valfeatures.append(imageid2features_val[image_id])
     #image_id = v['image_id']
     #valfeatures.append(
  except AttributeError:
@@ -124,12 +130,8 @@ print("The number of answer classes: ", len(answer_i2w.keys()))
 
 
 
-# Load image features
-import pickle
-with open('imageid2features.pkl', 'rb') as f:
-   imageid2features = pickle.load(f)
-
 print("Succesfully loaded image id to features")
+print("Exiting")
 
 class jointvqacaptions_dataset(Dataset):
 
@@ -174,6 +176,14 @@ train_loader = DataLoader(jvcdset,
 num_questionclasses = len(questions_wids)
 num_answerclasses = len(answer_wids)
 
+
+jvcdset = jointvqacaptions_dataset(valquestion_ints, valfeatures, valanswer_ints)
+val_loader = DataLoader(jvcdset,
+                          batch_size=32,
+                          shuffle=True,
+                          num_workers=4,
+                          collate_fn=jvcdset.collate_fn
+                         )
 
 
 
@@ -232,6 +242,62 @@ criterion = nn.CrossEntropyLoss(ignore_index=0)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
+def gen():
+  model.eval()
+  total_loss = 0
+  for i, data in enumerate(val_loader):
+    question, features, answer = data[0], data[1], data[2]
+    question, features, answer = Variable(question[0,:]), Variable(features[0]), Variable(answer[0])
+
+    question1 = question
+    answer1 = answer.item()
+    groundtruth_question = ' '.join(question_i2w[k] for k in question1.detach().numpy())
+    hk = open(logfile_name,'a')
+    hk.write("  The ground truth question during test was " +  groundtruth_question + '\n')
+    groundtruth_answer = answer_i2w[answer1]
+    hk.write("  The ground truth answer during test was " +  groundtruth_answer + '\n')
+    if print_flag:
+        print("Shape of question, caption and answer is ", question.shape,  answer.shape)      
+    if torch.cuda.is_available():
+          question, features, answer = question.cuda(), features.cuda(), answer.cuda()
+
+    answer_predicted = model(question.unsqueeze_(0), features.unsqueeze_(0))
+    c = gumbel_argmax(answer_predicted,0)
+    c = torch.max(c,-1)[1]
+    c = c.cpu().detach().numpy().tolist()
+    answer = answer.detach().cpu().numpy()
+    predicted_answer = ' '.join(answer_i2w[k] for k in c)
+    #print("The predicted answer was ", predicted_answer)
+    hk.write("  The predicted during test was " +  predicted_answer + '\n')
+    hk.write('\n')
+    hk.close()
+    print("I am here")
+    return 
+
+
+def val():
+  model.eval()
+  total_loss = 0
+  for i, data in enumerate(val_loader):
+    question, features, answer = data[0], data[1], data[2]
+    question, features, answer = Variable(question), Variable(features), Variable(answer)
+    if print_flag:
+        print("Shape of question, caption and answer is ", question.shape,  answer.shape)      
+    if torch.cuda.is_available():
+          question, features, answer = question.cuda(), features.cuda(), answer.cuda()
+
+    answer_predicted = model(question, features)
+    if print_flag:
+        print("Shape of predicted answer is ", answer_predicted.shape, " and that of original answer was ", answer.shape)        
+    loss = criterion(answer_predicted.view(-1, num_answerclasses), answer.view(-1))
+    total_loss += loss.item()
+
+    if i % 1000 == 1:
+       #val_loss = val()
+       print(" Val Loss after ", i , " updates: ", total_loss/(i+1))
+
+  return total_loss/(i+1)
+
 
 
 
@@ -259,7 +325,9 @@ def train():
     optimizer.step()
 
     if i % 1000 == 1:
+       gen()
        #val_loss = val()
+       model.train()
        print(" Train Loss after ", i , " updates: ", total_loss/(i+1))
       
   return total_loss/(i+1)
@@ -267,4 +335,4 @@ def train():
 for epoch in range(10):
    train_loss = train()
    val_loss = val()
-   print("After epoch ", epoch, " train loss: ", train_loss, " val loss: ", val_loss)
+   print("After epoch ", epoch, " train loss: ", train_loss)
