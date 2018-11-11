@@ -15,14 +15,9 @@ import torch.nn.functional as F
 from sklearn.metrics import classification_report, accuracy_score
 
 print_flag = 0
-
-
-vqa_train_gold_file = '/home/ubuntu/projects/multimodal/repos/VQA/PythonHelperTools/gold_annotations_train.csv' # Image_filename, ImageID, QuestionID, Question, Question_Type, Answer_Type, Answer_Majority
-vqa_val_gold_file = '/home/ubuntu/projects/multimodal/repos/VQA/PythonHelperTools/gold_annotations_val.csv'
-coco_train_captions_file = 'image_caption_train.txt_nospaces'
-coco_train_captions_file_nofilenames = 'image_caption_train.txt_nospaces_nofilenames'
-image_dir = ''
-wids_global = defaultdict(lambda: len(wids_global))
+logfile_name = 'log_modelpredictions_questionsonly'
+hk = open(logfile_name,'w')
+hk.close()
 
 
 def sample_gumbel(shape, eps=1e-10, out=None):
@@ -39,129 +34,85 @@ def gumbel_argmax(logits, dim):
    # Draw from a multinomial distribution efficiently
    #print("Shape of gumbel input: ", logits.shape)
    return logits + sample_gumbel(logits.size(), out=logits.data.new())
-   #sys.exit()
    return torch.max(logits + sample_gumbel(logits.size(), out=logits.data.new()), dim)[1]
 
 
-
-
-
-class jointvqacaptionsdataset(Dataset):
-
-     def __init__(self, vqa_file, captions_file, image_dir, train_flag=1, wids=None):
-        self.image_paths, self.image_ids, self.question_ids, self.questions, self.question_types, self.answer_types, self.answers = self.parse_vqafile(vqa_file)
-
-     def parse_vqafile(self, file):
-        image_paths = []
-        image_ids = []
-        question_ids = []
-        questions = []
-        question_types = []
-        answer_types = []
-        answers = []
-        f = open(file)
-        ctr = 0
-        for line in f:
-           if ctr == 0:
-              ctr += 1
-              continue
-           line = line.split('\n')[0].split('|||')
-           image_paths.append(line[0])
-           image_ids.append(line[1])
-           question_ids.append(line[2])
-           questions.append(line[3])
-           question_types.append(line[4])
-           answer_types.append(line[5])
-           answers.append(line[7]) # Taking max instead of union
-        return image_paths, image_ids, question_ids, questions, question_types, answer_types, answers
-
-
-
-jvcd = jointvqacaptionsdataset(vqa_train_gold_file,coco_train_captions_file,image_dir)
-questions_train = jvcd.questions
-answers_train = jvcd.answers
-#answers_train = jvcd.answer_types
-#answertypes_train = jvcd.answer_types
+# Load the imdb files
+train_dict = np.load('imdb_train2014.npy')
+val_dict = np.load('imdb_val2014.npy')
 
 questions_wids = defaultdict(lambda: len(questions_wids))
 questions_wids['_PAD'] = 0
 questions_wids['UNK'] = 1
-trainquestions_ints = []
-for q in questions_train: # sorry for varirable names. i am tired. will change later. 
-    #print(q)
-    l = []
-    for k in q.split():
-       k_l = questions_wids[k]
-       l.append(k_l)
-    trainquestions_ints.append(l)
-print("Length of question_wids: ", len(questions_wids))
-
 answer_wids = defaultdict(lambda: len(answer_wids))
+
+trainquestion_ints = []
 trainanswer_ints = []
-for a in answers_train: # sorry for varirable names. i am tired. will change later. 
+h = open('answers_vqa2014_jacobandreassplit.txt','w')
+for t in train_dict:
+ try:
+   if len(t.keys()) > 0:
+    question = t['question_str']
+    answer = t['valid_answers'][0]
+    h.write(answer + '\n')
     l = []
-    #for k in a.split():
-    #   k_l = answer_wids[k]
-    #   l.append(k_l)
-    k_l = answer_wids[a.split()[0]]      
-    trainanswer_ints.append(k_l)
-print("Length of answer_wids: ", len(answer_wids))
+    for q in question.split():
+        k_l = questions_wids[q]
+        l.append(k_l)
+    trainquestion_ints.append(l)
+    trainanswer_ints.append(answer_wids[answer])
+ except AttributeError:
+    print("This seems weird: ", t)
+h.close()
+print("There are these many items: ", len(trainquestion_ints))
 
-
-assert len(trainquestions_ints) == len(trainanswer_ints) 
-
-
-jvcd = jointvqacaptionsdataset(vqa_val_gold_file,coco_train_captions_file,image_dir)
-questions_val = jvcd.questions
-answers_val = jvcd.answers
-answers_val = jvcd.answer_types
-
-valquestions_ints = []
-for q in questions_val: # sorry for varirable names. i am tired. will change later.
-    l = []
-    if a.split()[0] in answer_wids:
-       k_l = answer_wids[a.split()[0]]      
-    else:
-       k_l = 1
-    valquestions_ints.append(l)
-print("Length of question_wids: ", len(questions_wids))
-
-valanswer_ints = []
-for a in answers_val: # sorry for varirable names. i am tired. will change later. 
-    l = []
-    #for k in a.split():
-    #   k_l = answer_wids[k]
-    #   l.append(k_l)
-    if a.split()[0] in answer_wids:
-       k_l = answer_wids[a.split()[0]]      
-    else:
-       k_l = 1
-    valanswer_ints.append(k_l)
-
-assert len(valquestions_ints) == len(valanswer_ints) 
-print("Length of answer_wids: ", len(answer_wids))
-print("Length of question_wids: ", len(questions_wids))
-#sys.exit()
-
-'''
-np.save('train_questions.npy', trainquestions_ints)
-np.save('train_answers.npy', trainanswer_ints)
-np.save('val_questions.npy', valquestions_ints)
-np.save('val_answers.npy', valanswer_ints)
-
-with open('question_wids.json', 'w') as outfile:
-            json.dump(questions_wids, outfile)
-with open('answers_wids.json', 'w') as outfile:
-            json.dump(answer_wids, outfile)
-'''
+assert len(trainquestion_ints) == len(trainanswer_ints)
 
 question_i2w =  {i:w for w,i in questions_wids.items()}
 answer_i2w = {i:w for w,i in answer_wids.items()}
 
+print("The number of question classes: ", len(question_i2w.keys()))
+print("The number of answer classes: ", len(answer_i2w.keys()))
+
+unk_id = answer_wids['<unk>']
+valquestion_ints = []
+valanswer_ints = []
+for v in val_dict:
+ try:
+   if len(v.keys()) > 0:
+    question = v['question_str']
+    answer = v['valid_answers'][0]
+    l = []
+    for q in question.split():
+        if q in questions_wids: 
+            k_l = questions_wids[q]
+            l.append(k_l)
+        else:
+            l.append(1) 
+    valquestion_ints.append(l)
+    if answer in answer_wids:
+       k_l = answer_wids[answer]
+    else:
+       k_l = unk_id   
+    valanswer_ints.append(k_l)
+ except AttributeError:
+    print("This seems weird: ", t)
+h.close()
+print("There are these many items: ", len(valquestion_ints))
+
+question_i2w =  {i:w for w,i in questions_wids.items()}
+answer_i2w = {i:w for w,i in answer_wids.items()}
+
+print("The number of question classes: ", len(question_i2w.keys()))
+print("The number of answer classes: ", len(answer_i2w.keys()))
+
+#sys.exit()
+
+
 class jointvqacaptions_dataset(Dataset):
 
       def __init__(self, questions, captions, answers):
-         self.questions = questions 
+         self.questions = questions
          self.captions = captions
          self.answers = answers
 
@@ -194,7 +145,7 @@ class jointvqacaptions_dataset(Dataset):
                   mode='constant', constant_values=0)
 
 
-jvcdset = jointvqacaptions_dataset(trainquestions_ints, trainquestions_ints, trainanswer_ints)
+jvcdset = jointvqacaptions_dataset(trainquestion_ints, trainquestion_ints, trainanswer_ints)
 train_loader = DataLoader(jvcdset,
                           batch_size=32,
                           shuffle=True,
@@ -204,7 +155,7 @@ train_loader = DataLoader(jvcdset,
 num_questionclasses = len(questions_wids)
 num_answerclasses = len(answer_wids)
 
-jvcdset = jointvqacaptions_dataset(valquestions_ints, valquestions_ints, valanswer_ints)
+jvcdset = jointvqacaptions_dataset(valquestion_ints, valquestion_ints, valanswer_ints)
 val_loader = DataLoader(jvcdset,
                           batch_size=32,
                           shuffle=True,
@@ -221,11 +172,15 @@ class baseline_model(nn.Module):
       hidden_dim =128
       self.question_embedding = nn.Embedding(num_classes, question_embed_dim)
       self.caption_embedding = nn.Embedding(num_classes, caption_embed_dim)
-      self.lstm = nn.LSTM(question_embed_dim, hidden_dim, batch_first = True, bidirectional=True)
+      self.embed2lstm = nn.Linear(question_embed_dim,question_embed_dim*2)
+      self.lstm = nn.LSTM(question_embed_dim*2, hidden_dim, 2, batch_first = True, bidirectional=True)
       self.hidden2out =  nn.Linear(hidden_dim*2, num_answerclasses)
+      self.dropout = nn.Dropout(0.3)
 
    def forward(self,question):
       question_embedding = self.question_embedding(question)
+      question_embedding = F.relu(self.embed2lstm(question_embedding))
+      question_embedding = self.dropout(question_embedding) 
 
       if print_flag:
          print("Shape of question embedding: ", question_embedding.shape)
@@ -247,6 +202,52 @@ if torch.cuda.is_available():
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
+
+
+def test():
+  model.eval()
+  y_predicted = []
+  for i, data in enumerate(val_loader):
+    question, answer = data[0], data[2]
+    if print_flag:
+        print("Shape of question, caption and answer in test is ", question.shape,  answer.shape, question, answer[0])      
+    question, answer = Variable(question[0,:]), Variable(answer[0])
+    question1 = question
+    groundtruth_question = ' '.join(question_i2w[k] for k in question1.detach().numpy())
+    hk = open(logfile_name,'a')
+    hk.write("  The ground truth question during test was " +  groundtruth_question + '\n')
+    #print("The ground truth question during test was ", groundtruth_question ) 
+    answer1 = answer.item()
+    groundtruth_answer = answer_i2w[answer1]
+    #print("The ground truth answer during test was ", groundtruth_answer)
+    hk.write("  The ground truth answer during test was " +  groundtruth_answer + '\n')
+
+    if torch.cuda.is_available():
+          question, answer = question.cuda(), answer.cuda()
+
+    answer_predicted = model(question.unsqueeze_(0))
+    if print_flag:
+        print("Shape of predicted answer is ", answer_predicted.shape, " and that of original answer was ", answer.shape)        
+    #answer_predicted = answer_predicted.reshape(answer.shape[0], num_answerclasses)
+    c = gumbel_argmax(answer_predicted,0)
+    c = torch.max(c,-1)[1]
+    c = c.cpu().detach().numpy().tolist()
+    answer = answer.detach().cpu().numpy()
+    predicted_answer = ' '.join(answer_i2w[k] for k in c)
+    #print("The predicted answer was ", predicted_answer)
+    hk.write("  The predicted during test was " +  predicted_answer + '\n')
+    hk.write('\n')
+    hk.close()
+    return 
+    if print_flag:
+       print(" Shape of c: ",  c)
+    w= []
+    for (a,b) in zip(c, answer):
+       y_predicted.append(a)
+       y_true.append(b)
+  print( accuracy_score(y_true, y_predicted))
+  return total_loss / ( i + 1 )
+
 
 
 
@@ -279,7 +280,11 @@ def val():
     for (a,b) in zip(c, answer):
        y_predicted.append(a)
        y_true.append(b)
-  print( accuracy_score(y_true, y_predicted))
+  #print( accuracy_score(y_true, y_predicted))
+  val_acc = str(accuracy_score(y_true, y_predicted))
+  hk = open(logfile_name,'a')
+  hk.write("Val set accuracy was " +  val_acc + '\n')
+
   return total_loss / ( i + 1 )
 
 
@@ -308,11 +313,13 @@ def train():
 
     if i % 1000 == 1:
        #val_loss = val()
-       #model.train()
        print(" Train Loss after ", i , " updates: ", total_loss/(i+1))
+       test()
+       model.train()
+      
   return total_loss/(i+1)
 
-for epoch in range(30):
+for epoch in range(10):
    train_loss = train()
    val_loss = val()
    print("After epoch ", epoch, " train loss: ", train_loss, " val loss: ", val_loss)
