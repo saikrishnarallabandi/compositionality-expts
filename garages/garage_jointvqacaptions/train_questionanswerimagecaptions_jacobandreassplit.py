@@ -131,8 +131,8 @@ for v in val_dict:
     valfeatures.append(imageid2features_val[image_id])
     caption = imageid2captions_val[image_id]
     for c in caption.split():
-      if q in questions_wids:
-         k_l = questions_wids[q]
+      if c in questions_wids:
+         k_l = questions_wids[c]
          l.append(k_l)
       else:
          l.append(1)
@@ -290,8 +290,8 @@ def gen():
     answer1 = answer.item()
     caption1 = caption
 
-    print("In gen: ", question1)
-    print("In gen: ", caption1)
+    print("Question: ", question1)
+    print("Caption: ", caption1)
 
     groundtruth_question = ' '.join(question_i2w[k] for k in question1.detach().numpy())
     groundtruth_caption = ' '.join(question_i2w[k] for k in caption1.detach().numpy())
