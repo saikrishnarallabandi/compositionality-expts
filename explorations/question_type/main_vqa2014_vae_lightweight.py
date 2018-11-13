@@ -28,7 +28,7 @@ parser.add_argument('--nhid', type=int, default=256,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=20,
+parser.add_argument('--lr', type=float, default=30,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
@@ -56,6 +56,8 @@ args = parser.parse_args()
 
 
 log_flag = 1
+generation_flag = 0
+eval_flag = 0
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -69,10 +71,11 @@ if torch.cuda.is_available():
 # Load data
 ###############################################################################
 
+'''
 if not os.path.exists('vqa2014_train_loader.pkl'):
     print("Please downlaod pkl files from http://tts.speech.cs.cmu.edu/rsk/misc_stuff/vqa/garage/")
     sys.exit()
-
+'''
 with open('train_loader.pkl', 'rb') as handle:
     train_loader = pickle.load(handle)
 
@@ -97,7 +100,8 @@ print("Loaded stuff in ", time.time() - script_start_time)
 ntokens = len(train_wids)
 model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+#optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.SGD(model.parameters(), lr = args.lr)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 # Reconstruction + KL divergence losses summed over all elements and batch
@@ -185,7 +189,10 @@ def train():
      ce_loss += ce.item()
 
 
-     if i%500==0:
+     if i% 30 == 1:
+         print("After ",i, " batches, KL Loss: ", kl_loss/(i+1), " reconstruction loss: ", ce_loss/(i+1) )
+
+     if i%500==0 and generation_flag:
          print (i,"Batches done, so generating")
          single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0), torch.LongTensor([train_loader.dataset[0][1]]).unsqueeze(0))
          single_train_sample = Variable(single_train_sample).cuda()
@@ -230,8 +237,26 @@ for epoch in range(args.epochs+1):
    g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
    g.close()
 
+   if eval_flag:
+      dev_klloss,dev_celoss = evaluate()
+      val_loss = dev_klloss+dev_celoss
+      scheduler.step(val_loss)
+      print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celess)
+      g = open(logfile_name,'a')
+      g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss))
+      g.close()
+
+   else:
+     # Log stuff
+     print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss,  "Time: ", time.time() - epoch_start_time)
+     g = open(logfile_name,'a')
+     g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
+     g.close()
+'''
    # Save stuff
    if not best_val_loss or val_loss < best_val_loss:
        with open(model_name, 'wb') as f:
            torch.save(model, f)
        best_val_loss = val_loss
+=======
+'''

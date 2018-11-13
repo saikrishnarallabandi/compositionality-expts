@@ -7,14 +7,15 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import model_VAE_barebones as model
+import model_rnnlm_barebones as model
 from data_loader_barebones import *
-import generation_VAE_barebones as generation
-from logger import *
+#from logger import *
 import logging
 import pickle
 import json
 import numpy as np
+import generation_rnn as generation
+import gc
 
 script_start_time = time.time()
 
@@ -57,7 +58,7 @@ args = parser.parse_args()
 
 
 log_flag = 1
-generation_flag = 1
+generation_flag = 0
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -70,7 +71,7 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-"""
+'''
 train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
 valid_file = '/home/ubuntu/projects/multimodal/data/VQA/val2014.questions.txt'
 train_set = vqa_dataset(train_file,1,None)
@@ -108,9 +109,9 @@ with open('test_loader.pkl', 'wb') as handle:
     pickle.dump(test_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
-"""
 
 #sys.exit()
+'''
 
 with open('train_loader.pkl', 'rb') as handle:
     train_loader = pickle.load(handle)
@@ -134,26 +135,10 @@ print("Loaded stuff in ", time.time() - script_start_time)
 
 
 ntokens = len(train_wids)
-model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
+print("Number of tokens is ", ntokens)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
-
-# Reconstruction + KL divergence losses summed over all elements and batch
-def loss_fn(recon_x, x, mu, logvar):
-    #print("Shapes of recon_x and x are: ", recon_x.shape, x.shape)
-
-    BCE = criterion(recon_x.view(-1,ntokens), x.view(-1))
-
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    #print("The loss function is returning ", BCE + KLD)
-    return KLD, BCE
-
-lr = args.lr
 
 
 def evaluate():
@@ -174,14 +159,12 @@ def evaluate():
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
 
-     recon_batch, mu, log_var = model(data, None, data_type)
-     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-     loss  = kl + ce
+     output, hidden = model(data, None)
+     loss = criterion(output.view(-1, ntokens), targets.view(-1))
 
-     kl_loss += kl.item()
      ce_loss += ce.item()
 
-  return kl_loss/(i+1) , ce_loss/(i+1)
+  return  ce_loss/(i+1)
 
 num_batches = int(len(train_loader.dataset)/args.batch_size)
 print("There are ", num_batches, " batches")
@@ -189,51 +172,76 @@ print("There are ", num_batches, " batches")
 
 train_flag = 1
 
-def train():
-  global ctr
-  global kl_weight_loop
-  model.train()
-  kl_loss = 0
-  ce_loss = 0
-  for i,a in enumerate(train_loader):
-     ctr += 1
+max_length = 32
 
+def repackage_hidden(h):
+    """Wraps hidden states in new Tensors, to detach them from their history."""
+    if isinstance(h, torch.Tensor):
+        return h.detach()
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+def train():
+  #global ctr
+  model.train()
+  ce_loss = 0
+  hidden = model.init_hidden(args.batch_size)
+  for i,a in enumerate(train_loader):
+     hidden = repackage_hidden(hidden)
+     #ctr += 1
+     print(i)  
      data_full = a[0]
-     data = data_full[:,0:data_full.size(1)-1]
-     targets = data_full[:, 1:]
-     hidden = None
-     #print ("type is", a[1], type(a[1]))
-     data_type =  Variable(a[1]).cuda()
-     #print (data_type.size(), "is size of the condtion")
+     del a 
+     len_data = data_full.size(1)
+     length_desired = max_length if len_data > max_length else len_data
+     data = data_full[:,0:length_desired-1]
+     targets = data_full[:, 1:length_desired+1]
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
-
      optimizer.zero_grad()
-     recon_batch, mu, log_var = model(data, None, data_type)
-     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
-
-     #loss  = kl_weight_loop * kl + ce
-     loss = kl + ce
+     model.zero_grad() # This line is my madness gone crazy
+     output, hidden  = model(data, None)
+     print("Shape of output, data and target: ", output.shape, data.shape, targets.shape, length_desired)
+     loss = criterion(output.view(-1, ntokens), targets.view(-1))
      loss.backward()
+     ce_loss += loss.item()
+
+     del output, targets, data, loss, len_data, length_desired 
 
      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
      optimizer.step()
+     optimizer.zero_grad()
 
-     kl_loss += kl.item()
-     ce_loss += ce.item()
+     # https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741
+     try:
+       for obj in gc.get_objects():
+         if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+           print(type(obj), obj.size())
+     except OSError:
+       pass
 
+     # https://discuss.pytorch.org/t/how-to-print-models-parameters-with-its-name-and-requires-grad-value/10778  
+     for name, param in model.named_parameters():
+        if param.requires_grad:
+           print ( name, param.data.shape)
 
-     if i%500==0 and generation_flag:
+     if i% 100 == 1:
+       # Log stuff
+       g = open(logfile_name,'a')
+       g.write("   Aftr step " + str(i) + " Train CE Loss: " + str(ce_loss/(i+1)) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
+       g.close()
+
+     if i%100==0 and generation_flag:
          print (i,"Batches done, so generating")
          single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0), torch.LongTensor([train_loader.dataset[0][1]]).unsqueeze(0))
          single_train_sample = Variable(single_train_sample).cuda()
          single_train_sample_type = Variable(single_train_sample_type).cuda()
          print (single_train_sample.size(), single_train_sample_type.size(), "before generation")
-         generation.gen_evaluate(model, single_train_sample, None, train_i2w, train_wids, single_train_sample_type)
+         generation.gen_evaluate(model, single_train_sample, None, train_i2w)
          model.train()
 
-  return kl_loss/(i+1) , ce_loss/(i+1)
+  return ce_loss/(i+1)
 
 
 
@@ -257,16 +265,15 @@ for epoch in range(args.epochs+1):
    #   optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
    #   print("Switched to SGD ")
    epoch_start_time = time.time()
-   train_klloss, train_celoss = train()
-   dev_klloss,dev_celoss = evaluate()
-   val_loss = dev_klloss+dev_celoss
-   scheduler.step(val_loss)
+   train_celoss = train()
+   dev_celoss = evaluate()
+   val_loss = dev_celoss
+   #scheduler.step(val_loss)
    #print(time.time() - epoch_start_time)
 
    # Log stuff
-   print("Aftr epoch ", epoch, " Train KL Loss: ", train_klloss, "Train CE Loss: ", train_celoss, "Val KL Loss: ", dev_klloss, " Val CE Loss: ", dev_celoss, "Time: ", time.time() - epoch_start_time)
    g = open(logfile_name,'a')
-   g.write("Aftr epoch " + str(epoch) + " Train KL Loss: " + str(train_klloss) + " Train CE Loss: " + str(train_celoss) + " Val KL Loss: " + str(dev_klloss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
+   g.write("Aftr epoch " + str(epoch) + " Train CE Loss: " + str(train_celoss) + " Val CE Loss: " + str(dev_celoss) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
    g.close()
 
    # Save stuff
@@ -274,3 +281,4 @@ for epoch in range(args.epochs+1):
        with open(model_name, 'wb') as f:
            torch.save(model, f)
        best_val_loss = val_loss
+

@@ -7,14 +7,12 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import model_VAE_barebones as model
 from data_loader_barebones import *
-import generation_VAE_barebones as generation
+import model_MMD_VAE_barebones as model
 from logger import *
 import logging
 import pickle
 import json
-import numpy as np
 
 script_start_time = time.time()
 
@@ -57,7 +55,8 @@ args = parser.parse_args()
 
 
 log_flag = 1
-generation_flag = 1
+generation_flag = 0
+
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -70,47 +69,10 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-"""
-train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
-valid_file = '/home/ubuntu/projects/multimodal/data/VQA/val2014.questions.txt'
-train_set = vqa_dataset(train_file,1,None)
-train_loader = DataLoader(train_set,
-                          batch_size=args.batch_size,
-                          shuffle=True,
-                          num_workers=4,
-                          collate_fn=collate_fn
-                         )
-train_wids = vqa_dataset.get_wids()
 
-valid_set = vqa_dataset(valid_file, 0, train_wids)
-valid_loader = DataLoader(valid_set,
-                          batch_size=args.batch_size,
-                          shuffle=True,
-                          num_workers=4,
-                          collate_fn=collate_fn
-                         )
-
-test_loader = DataLoader(valid_set,
-                          batch_size=1,
-                          shuffle=False,
-                          num_workers=4,
-                          collate_fn=collate_fn
-                         )
-
-# https://stackoverflow.com/questions/11218477/how-can-i-use-pickle-to-save-a-dict
-with open('train_loader.pkl', 'wb') as handle:
-    pickle.dump(train_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-with open('valid_loader.pkl', 'wb') as handle:
-    pickle.dump(valid_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-with open('test_loader.pkl', 'wb') as handle:
-    pickle.dump(test_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
-"""
-
-#sys.exit()
+#if not os.path.exists('vqa2014_train_loader.pkl'):
+#    print("Please downlaod pkl files from http://tts.speech.cs.cmu.edu/rsk/misc_stuff/vqa/garage/")
+#    sys.exit()
 
 with open('train_loader.pkl', 'rb') as handle:
     train_loader = pickle.load(handle)
@@ -136,11 +98,68 @@ print("Loaded stuff in ", time.time() - script_start_time)
 ntokens = len(train_wids)
 model = model.VAEModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).cuda()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
-# Reconstruction + KL divergence losses summed over all elements and batch
-def loss_fn(recon_x, x, mu, logvar):
+# Reconstruction + KL + MMD divergence losses summed over all elements and batch
+def compute_kernel(x, y):
+    x_size = x.size(0)
+    y_size = y.size(0)
+    dim = x.size(1)
+    x = x.unsqueeze(1) # (x_size, 1, dim)
+    y = y.unsqueeze(0) # (1, y_size, dim)
+    tiled_x = x.expand(x_size, y_size, dim)
+    tiled_y = y.expand(x_size, y_size, dim)
+    kernel_input = (tiled_x - tiled_y).pow(2).mean(2)/float(dim)
+    return torch.exp(-kernel_input) # (x_size, y_size)
+
+
+def compute_mmd(x, y):
+    x = x.view(x.size(0), x.size(1)*x.size(2))
+    y = y.view(y.size(0), y.size(1)*y.size(2))
+
+    x_size = x.size(0)
+
+    dim = x.size(1)
+ 
+    x_un = x.unsqueeze(1)
+    x_un_t = x.unsqueeze(0)
+
+    tiled_x_un = x_un.expand(x_size, x_size, dim)
+    tiled_x_un_t = x_un_t.expand(x_size, x_size, dim)
+
+    y_un = y.unsqueeze(1)
+    y_un_t = y.unsqueeze(0)
+
+    tiled_y_un = y_un.expand(x_size, x_size, dim)
+    tiled_y_un_t = y_un_t.expand(x_size, x_size, dim)
+
+    #x_kernel = compute_kernel(x, x)
+    #y_kernel = compute_kernel(y, y)
+    #xy_kernel = compute_kernel(x, y)
+    mmd = torch.exp(-1*((tiled_x_un - tiled_x_un_t).pow(2).mean(2)/float(dim))).mean() + torch.exp(-1*((tiled_y_un - tiled_y_un_t).pow(2).mean(2)/float(dim))).mean() - 2*torch.exp(-1*((tiled_x_un - tiled_y_un_t).pow(2).mean(2)/float(dim))).mean()
+    return 10*mmd
+
+    #B = x.size(0)
+    #x = x.view(x.size(0), x.size(1)*x.size(2))
+    #y = y.view(y.size(0), y.size(1)*y.size(2))
+
+    #xx, yy, zz = torch.mm(x,x.t()), torch.mm(y,y.t()), torch.mm(x,y.t())
+
+    #rx = (xx.diag().unsqueeze(0).expand_as(xx))
+    #ry = (yy.diag().unsqueeze(0).expand_as(yy))
+
+    #K = torch.exp(- 0.7 * (rx.t() + rx - 2*xx))
+    #L = torch.exp(- 0.7 * (ry.t() + ry - 2*yy))
+    #P = torch.exp(- 0.7 * (rx.t() + ry - 2*zz))
+
+    #beta = (1./(B*(B-1)))
+    #gamma = (2./(B*B)) 
+
+    #return beta * (torch.sum(K)+torch.sum(L)) - gamma * torch.sum(P)
+
+
+def loss_fn(recon_x, x, z, true_samples, mu, logvar):
     #print("Shapes of recon_x and x are: ", recon_x.shape, x.shape)
 
     BCE = criterion(recon_x.view(-1,ntokens), x.view(-1))
@@ -150,8 +169,9 @@ def loss_fn(recon_x, x, mu, logvar):
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    MMD = compute_mmd(true_samples, z)
     #print("The loss function is returning ", BCE + KLD)
-    return KLD, BCE
+    return KLD, BCE, MMD
 
 lr = args.lr
 
@@ -174,8 +194,11 @@ def evaluate():
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
 
-     recon_batch, mu, log_var = model(data, None, data_type)
-     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
+     recon_batch, mu, log_var, z = model(data, None, data_type)
+     true_samples = Variable(torch.randn(z.size()[0], z.size()[1], z.size()[2]), requires_grad=False).cuda()
+
+     kl,ce, mmd = loss_fn(recon_batch, targets, z, true_samples, mu,log_var)
+     kl = mmd
      loss  = kl + ce
 
      kl_loss += kl.item()
@@ -209,9 +232,13 @@ def train():
      targets = Variable(targets).cuda()
 
      optimizer.zero_grad()
-     recon_batch, mu, log_var = model(data, None, data_type)
-     kl,ce = loss_fn(recon_batch, targets,mu,log_var)
+     recon_batch, mu, log_var, z = model(data, None, data_type)
 
+     true_samples = Variable(torch.randn(z.size()[0], z.size()[1], z.size()[2]), requires_grad=False).cuda()
+
+     kl,ce,mmd = loss_fn(recon_batch, targets, z, true_samples, mu,log_var)
+
+     kl = mmd
      #loss  = kl_weight_loop * kl + ce
      loss = kl + ce
      loss.backward()
@@ -230,11 +257,10 @@ def train():
          single_train_sample = Variable(single_train_sample).cuda()
          single_train_sample_type = Variable(single_train_sample_type).cuda()
          print (single_train_sample.size(), single_train_sample_type.size(), "before generation")
-         generation.gen_evaluate(model, single_train_sample, None, train_i2w, train_wids, single_train_sample_type)
+         generation.gen_evaluate(model, single_train_sample, None, train_i2w, single_train_sample_type)
          model.train()
 
   return kl_loss/(i+1) , ce_loss/(i+1)
-
 
 
 logfile_name = 'log_klannealing'

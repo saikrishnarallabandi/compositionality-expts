@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-import model_VAE_barebones as model
+import model_vaelm_encrnndecrnn as model
 from data_loader_barebones import *
 import generation_VAE_barebones as generation
 from logger import *
@@ -17,6 +17,7 @@ import json
 import numpy as np
 
 script_start_time = time.time()
+logger = Logger('./logs/vaelmencrnndecrnn_teacherforcing_captions')
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../../../../data/VQA/',
@@ -70,9 +71,9 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-"""
-train_file = '/home/ubuntu/projects/multimodal/data/VQA/train2014.questions.txt'
-valid_file = '/home/ubuntu/projects/multimodal/data/VQA/val2014.questions.txt'
+
+train_file = 'data/vqa2014/train2014.captions.txt'
+valid_file = 'data/vqa2014/val2014.captions.txt'
 train_set = vqa_dataset(train_file,1,None)
 train_loader = DataLoader(train_set,
                           batch_size=args.batch_size,
@@ -108,7 +109,6 @@ with open('test_loader.pkl', 'wb') as handle:
     pickle.dump(test_loader, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 json.dump(train_wids, open('train_wids.json', 'w')) # https://codereview.stackexchange.com/questions/30741/writing-defaultdict-to-csv-file
-"""
 
 #sys.exit()
 
@@ -174,7 +174,7 @@ def evaluate():
      data = Variable(data).cuda()
      targets = Variable(targets).cuda()
 
-     recon_batch, mu, log_var = model(data, None, data_type)
+     recon_batch, mu, log_var = model(data, None, None, data_type)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
      loss  = kl + ce
 
@@ -197,7 +197,8 @@ def train():
   ce_loss = 0
   for i,a in enumerate(train_loader):
      ctr += 1
-
+     #print(i)
+  
      data_full = a[0]
      data = data_full[:,0:data_full.size(1)-1]
      targets = data_full[:, 1:]
@@ -209,7 +210,7 @@ def train():
      targets = Variable(targets).cuda()
 
      optimizer.zero_grad()
-     recon_batch, mu, log_var = model(data, None, data_type)
+     recon_batch, mu, log_var = model(data, None, None, data_type)
      kl,ce = loss_fn(recon_batch, targets,mu,log_var)
 
      #loss  = kl_weight_loop * kl + ce
@@ -223,22 +224,32 @@ def train():
      kl_loss += kl.item()
      ce_loss += ce.item()
 
-
+     if i% 100 == 1:
+       # Log stuff
+       g = open(logfile_name,'a')
+       g.write("   Aftr step " + str(i) + " Train KL Loss: " + str(kl_loss/(i+1)) + " Train CE Loss: " + str(ce_loss/(i+1)) + " Time: " + str(time.time() - epoch_start_time)  + '\n')
+       g.close()
+     
      if i%500==0 and generation_flag:
          print (i,"Batches done, so generating")
          single_train_sample, single_train_sample_type = (torch.LongTensor(train_loader.dataset[0][0]).unsqueeze(0), torch.LongTensor([train_loader.dataset[0][1]]).unsqueeze(0))
          single_train_sample = Variable(single_train_sample).cuda()
          single_train_sample_type = Variable(single_train_sample_type).cuda()
          print (single_train_sample.size(), single_train_sample_type.size(), "before generation")
-         generation.gen_evaluate(model, single_train_sample, None, train_i2w, train_wids, single_train_sample_type)
+         generation.gen_evaluate(model, single_train_sample, None, train_i2w, single_train_sample_type)
          model.train()
+
+     if log_flag:
+        logger.scalar_summary('Train KL Loss', kl_loss * 1.0 / (i+1) , ctr)
+        logger.scalar_summary('Train CE Loss', ce_loss * 1.0 / (i+1) , ctr)
+        logger.scalar_summary('Train Loss', (kl_loss + ce_loss)* 1.0 / (i+1) , ctr)
 
   return kl_loss/(i+1) , ce_loss/(i+1)
 
 
 
-logfile_name = 'log_klannealing'
-model_name = 'klannealing_thr010.pth'
+logfile_name = 'log_vaelm_captions'
+model_name = 'model_vaelm_captions.pth'
 g = open(logfile_name,'w')
 g.close()
 
@@ -251,7 +262,7 @@ kl_weight_loop = kl_weight
 #kl_weight = torch.LongTensor(kl_weight)
 #https://math.stackexchange.com/questions/2198864/slow-increasing-function-between-0-and-1
 
-for epoch in range(args.epochs+1):
+for epoch in range(100):
 
    #if epoch == 5:
    #   optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
@@ -274,3 +285,10 @@ for epoch in range(args.epochs+1):
        with open(model_name, 'wb') as f:
            torch.save(model, f)
        best_val_loss = val_loss
+
+   if log_flag:
+        logger.scalar_summary('Train KL Loss per epoch ', train_klloss , epoch)
+        logger.scalar_summary('Train CE Loss per epoch ', train_celoss , epoch)
+        logger.scalar_summary('Dev KL Loss per epoch ', dev_klloss , epoch)
+        logger.scalar_summary('Dev CE Loss per epoch ', dev_celoss , epoch)
+
