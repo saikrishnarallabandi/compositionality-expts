@@ -67,6 +67,7 @@ for t in train_dict:
         k_l = questions_wids[c]
         l.append(k_l)
     traincaption_ints.append(l)
+    del question_id, image_id, answer, t
 
     #print("Shape of image id to features is ", imageid2features[image_id].shape)
 
@@ -75,7 +76,7 @@ for t in train_dict:
 h.close()
 print("There are these many items: ", len(trainquestion_ints))
 
-assert len(trainquestion_ints) == len(trainanswer_ints)
+assert len(trainquestion_ints) == len(traincaption_ints)
 
 question_i2w =  {i:w for w,i in questions_wids.items()}
 answer_i2w = {i:w for w,i in answer_wids.items()}
@@ -121,6 +122,7 @@ for v in val_dict:
     valfeatures.append(imageid2features_val[image_id])
     caption = imageid2captions_val[image_id]
     valquestion_ids.append(question_id)
+
     l = []
     for c in caption.split():
       if c in questions_wids:
@@ -129,6 +131,7 @@ for v in val_dict:
       else:
          l.append(1)
     valcaption_ints.append(l)
+    del question_id, image_id, answer
 
     #image_id = v['image_id']
     #valfeatures.append(
@@ -200,7 +203,7 @@ num_questionclasses = len(questions_wids)
 num_answerclasses = len(answer_wids)
 
 
-jvcdset = jointvqacaptions_dataset(valquestion_ints, valfeatures, valanswer_ints, valcaption_ints, trainquestion_ids)
+jvcdset = jointvqacaptions_dataset(valquestion_ints, valfeatures, valanswer_ints, valcaption_ints, valquestion_ids)
 val_loader = DataLoader(jvcdset,
                           batch_size=1,
                           shuffle=True,
