@@ -1,5 +1,0 @@
-_Find
-_Transform
-_And
-_Describe
-<eos>
