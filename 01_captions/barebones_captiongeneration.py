@@ -45,6 +45,9 @@ val_dict = np.load('imdb_val2014.npy')
 questions_wids = defaultdict(lambda: len(questions_wids))
 questions_wids['_PAD'] = 0
 questions_wids['UNK'] = 1
+questions_wids['SOS'] = 2
+questions_wids['EOS'] = 3
+
 answer_wids = defaultdict(lambda: len(answer_wids))
 
 # Load image features
@@ -78,6 +81,7 @@ for t in train_dict:
     trainfeatures.append(imageid2features[image_id])
     l = []
     caption = imageid2captions[image_id]
+    caption = 'SOS ' + caption + ' EOS'
     for c in caption.split():
         k_l = questions_wids[c]
         l.append(k_l)
@@ -132,6 +136,7 @@ for v in val_dict:
     valimage_ids.append(image_id)
     valfeatures.append(imageid2features_val[image_id])
     caption = imageid2captions_val[image_id]
+    caption = 'SOS ' + caption + ' EOS'
     l = []
     for c in caption.split():
       if c in questions_wids:
@@ -279,9 +284,9 @@ class baseline_model(nn.Module):
 
         inputs = features.new(features.shape[0], 1, 1)
         inputs.zero_()
-
+        i = 0
         sampled_ids = []
-        for i in range(max_len):
+        while True:
 
             caption_embedding = self.caption_embedding(inputs.long())
             caption_embedding = F.relu(self.embed2lstm_caption(caption_embedding))
@@ -299,6 +304,9 @@ class baseline_model(nn.Module):
             sampled_ids.append(predicted.item())
             inputs = predicted.unsqueeze(0)
             inputs = inputs.unsqueeze(0)
+            i += 1
+            if predicted == 3 or len(sampled_ids) == max_len - 1:
+               break
 
         return sampled_ids
 
@@ -366,6 +374,7 @@ def train():
          hk.close()
          gen()
          model.train()
+  return total_loss/(i+1)
 
 for epoch in range(10):
    epoch_start_time = time.time()
@@ -373,3 +382,4 @@ for epoch in range(10):
    hk = open(logfile_name,'a')
    hk.write("Train Loss after epoch " + str(epoch)  + " " + str(train_loss) + '\n')
    hk.close()
+
