@@ -132,30 +132,75 @@ class CaptionCNN(nn.Module):
         return outputs
 
 class CaptionSingleCNN(nn.Module):
-    def __init__(self, feature_size, embed_size, hidden_size, vocab_size, num_layers, max_seq_length=20):
+    def __init__(self, feature_size, embed_size, hidden_size, vocab_size, num_layers, max_seq_length=60):
         """Set the hyper-parameters and build the layers."""
         super(CaptionSingleCNN, self).__init__()
         self.embed = nn.Embedding(vocab_size, embed_size)
         
-        layers_per_stack = layers // stacks
         self.kernel_size = 3
         self.stride = 1
         self.vocab_size = vocab_size
-        
-
-        self.conv_modules = nn.ModuleList()
-        for layer in range(layers):
-            dilation = 2**(layer % layers_per_stack)
-            self.padding = int((self.kernel_size - 1)/2 * dilation)
-            conv = residualconvmodule(embed_size,embed_size, self.kernel_size, self.stride, self.padding,dilation)
-            self.conv_modules.append(conv)
-
+        self.padding = 1
+        self.conv = residualconvmodule(embed_size, embed_size, self.kernel_size, self.stride, self.padding, dilation = 1)
 
         self.linear = nn.Linear(hidden_size, vocab_size)
         self.max_seg_length = max_seq_length
 
         self.image_linear = nn.Linear(feature_size, embed_size)
         self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
-        
+
         self.final_fc1 = SequenceWise(nn.Linear(256, 512))
         self.final_fc2 = SequenceWise(nn.Linear(512, vocab_size))
+
+    def forward(self, features, captions, lengths):
+        """Decode image feature vectors and generates captions."""
+
+        features = self.bn(self.image_linear(features))
+
+        embeddings = self.embed(captions)
+        embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
+
+        c = None
+        x = embeddings.transpose(1,2)
+        x = self.conv(x,c)
+        x = x.transpose(1,2)
+
+        x = F.relu(self.final_fc1(x))
+        x = self.final_fc2(x)
+
+        return x[:,:-1,:]
+
+    def clear_buffers(self):
+        self.conv.clear_buffer()
+
+
+
+    def sample(self, features, states=None, return_logits=0):
+        """Generate captions for given image features using greedy search."""
+
+        outputs = []
+        logits = []
+        features = self.bn(self.image_linear(features))
+        inputs = features.unsqueeze(1)
+        bsz = inputs.shape[0]
+
+        self.clear_buffers()
+        c = None
+        x = inputs
+        for i in range(self.max_seg_length):
+            x = F.relu(self.conv.incremental_forward(x, c))
+            x = F.relu(self.final_fc1(x))
+            x = self.final_fc2(x)
+            logits.append(x.squeeze(1))
+            v, predicted = torch.max(x,2)
+            outputs.append(predicted[0])
+            x = self.embed(predicted)
+
+        outputs = torch.stack(outputs, 1)
+        logits = torch.stack(logits)
+        if return_logits:
+            #print("Returning logits")
+            return logits
+        return outputs
+
+
