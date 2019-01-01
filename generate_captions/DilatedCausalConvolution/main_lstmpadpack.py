@@ -7,10 +7,12 @@ from data_loader import get_loader
 from build_vocab import Vocabulary
 from model import *
 import time
+from torch.nn.utils.rnn import *
+
 
 ## Flags
 print_flag = 0
-debug_flag = 1
+debug_flag = 0
 
 ## Files
 vocab_file = 'vocab.pkl'
@@ -62,8 +64,8 @@ val_loader = get_loader(i2f_dict=imageid2features_val,
 ## Model and stuff
 feature_size = 2048
 embed_size = 256
-hidden_size = 512
-model = CaptionSingleCNN(feature_size,embed_size, hidden_size,len(vocab),1).to(device)
+hidden_size = 128
+model = CaptionRNN(feature_size,embed_size, hidden_size,len(vocab),2).to(device)
 print(model)
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 params = list(model.parameters())
@@ -133,12 +135,13 @@ def train():
             captions = captions.to(device)
             outputs = model(features, captions, lengths)
             bsz = features.shape[0]
+            targets = pack_padded_sequence(captions, lengths, batch_first=True)[0]
             
             if debug_flag:
                captions_bkp = captions
                outputs_bkp = outputs
-
-            loss = criterion(outputs.reshape(bsz*outputs.shape[1], outputs.shape[2]),captions.reshape(captions.shape[0] * captions.shape[1]))
+            #print("Shape of outputs and captions: ", outputs.shape, captions.shape)
+            loss = criterion(outputs,targets)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -147,7 +150,7 @@ def train():
             
             if debug_flag and i% 300 == 1:
                captions = captions_bkp
-               outputs = outputs_bkp
+               outputs = pad_packed_sequence(outputs_bkp,batch_first=True)
                captions = captions[0,:]
                outputs = outputs[0,:,:]
                sampled_ids = torch.max(outputs,dim=1)[1]

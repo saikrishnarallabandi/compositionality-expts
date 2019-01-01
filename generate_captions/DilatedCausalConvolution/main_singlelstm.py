@@ -62,8 +62,8 @@ val_loader = get_loader(i2f_dict=imageid2features_val,
 ## Model and stuff
 feature_size = 2048
 embed_size = 256
-hidden_size = 512
-model = CaptionSingleCNN(feature_size,embed_size, hidden_size,len(vocab),1).to(device)
+hidden_size = 128
+model = CaptionSingleRNN(feature_size,embed_size, hidden_size,len(vocab),2).to(device)
 print(model)
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 params = list(model.parameters())
