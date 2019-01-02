@@ -66,7 +66,7 @@ val_loader = get_loader(i2f_dict=imageid2features_val,
 feature_size = 2048
 embed_size = 256
 hidden_size = 128
-model = CaptionSingleRNN(feature_size,embed_size, hidden_size,len(vocab),2).to(device)
+model = CaptionSingleCNN(feature_size,embed_size, hidden_size,len(vocab),2).to(device)
 print(model)
 criterion = nn.CrossEntropyLoss(ignore_index=0,reduction='none')
 params = list(model.parameters())
@@ -136,20 +136,7 @@ def val(partial_flag= 1):
                   
             features = features.to(device)
             captions = captions.to(device)
-            # ([1, 2048]) torch.Size([1, 13])
-            print("Shape of features and captions to the model during val: ", features.shape, captions.shape)
-            outputs = model.sample_old(features, return_logits=1) 
-            # torch.Size([100, 1, 5861])
-            print("Shape of output from the model during val: ", outputs.shape)
-            outputs = outputs[:captions.shape[1],:,:]
-            #outputs = outputs.squeeze(1)
-            bsz = features.shape[0]
-            t = captions.shape[1]
-            targets = captions.contiguous().view(bsz*t)
-            outputs = outputs.contiguous().view(bsz*t,-1)
-            
-            #loss = loss_fn(outputs,captions)
-            #l += loss.item()
+
             
             features = features[0,:]
             captions = captions[0,:]
@@ -175,6 +162,8 @@ def train():
             outputs = model(features, captions, lengths)
             bsz = features.shape[0]
             t = captions.shape[1]
+            #print("Shape of outputs, captions", outputs.shape, captions.shape)
+            #print("bsz,t: ", bsz,t)
             targets = captions.contiguous().view(bsz*t)
             outputs = outputs.contiguous().view(bsz*t,-1)
 

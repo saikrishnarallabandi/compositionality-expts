@@ -10,7 +10,7 @@ import time
 
 ## Flags
 print_flag = 0
-debug_flag = 1
+debug_flag = 0
 
 ## Files
 vocab_file = 'vocab.pkl'
@@ -62,66 +62,92 @@ val_loader = get_loader(i2f_dict=imageid2features_val,
 ## Model and stuff
 feature_size = 2048
 embed_size = 256
-hidden_size = 512
-model = CaptionSingleCNN(feature_size,embed_size, hidden_size,len(vocab),1).to(device)
+hidden_size = 128
+model = CaptionRNN(feature_size,embed_size, hidden_size,len(vocab),2).to(device)
 print(model)
+criterion = nn.CrossEntropyLoss()
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 params = list(model.parameters())
 optimizer = torch.optim.Adam(params, lr = 0.001)
 updates = 0
 
+
+def generate(features, captions):
+    
+    features = features.unsqueeze(0)
+    captions = captions.unsqueeze(0)
+    
+    # Generate an caption from the image
+    sampled_ids = model.sample(features)
+    sampled_ids = sampled_ids[0].cpu().numpy()          # (1, max_seq_length) -> (max_seq_length)
+    print("Shape of sampled ids during generation: ", sampled_ids.shape, sampled_ids)
+    
+    # Convert word_ids to words
+    sampled_caption = []
+    for word_id in sampled_ids:
+        #print("Word Id is: ", word_id)
+        word = vocab.idx2word[word_id]
+        sampled_caption.append(word)
+        if word == '<end>':
+             break
+    sentence = ' '.join(sampled_caption)
+    
+    # Print out the image and the generated caption
+    print ("I predicted: ", sentence)
+    
+    sampled_ids = captions
+    sampled_ids = sampled_ids[0].cpu().numpy()          # (1, max_seq_length) -> (max_seq_length)
+    
+    
+    # Convert word_ids to words
+    sampled_caption = []
+    for word_id in sampled_ids:
+        word = vocab.idx2word[word_id]
+        sampled_caption.append(word)
+        if word == '<end>':
+             break
+    sentence = ' '.join(sampled_caption)
+    
+    # Print out the image and the generated caption
+    print ("Original Sentence: ", sentence)
+    
+    print('\n')
+    
+    return
+
+    
 ## Validation
 def val(partial_flag= 1):
-    model.eval()
-    l = 0
+  model.eval()
+  l = 0
+  with torch.no_grad():
     for i, (features, captions, lengths, image_names) in enumerate(val_loader):
                   
             features = features.to(device)
             captions = captions.to(device)
-            outputs = model.sample(features,return_logits=1)
+            # ([1, 2048]) torch.Size([1, 13])
+            print("Shape of features and captions to the model during val: ", features.shape, captions.shape)
+            outputs = model.sample(features,return_logits=1) 
+            # torch.Size([100, 1, 5861])
+            print("Shape of output from the model during val: ", outputs.shape)
             bsz = features.shape[0]
             outputs = outputs[:captions.shape[1],:,:]
             outputs = outputs.squeeze(1)
-            #print("Shape of outputs and captions: ", outputs.shape, captions.shape)
             loss = criterion(outputs,captions.reshape(captions.shape[0]*captions.shape[1]))
             l += loss.item()
             
-            if i == 1 and partial_flag:
-               #print("  Val loop: After ", i, " batches, loss: ", l/(i+1))
-               output = model.sample(features)
-               sampled_ids = torch.max(outputs,dim=1)[1]
-               sampled_ids = sampled_ids.cpu().numpy()
-               sampled_caption = []
-               for word_id in sampled_ids:
-                  word = vocab.idx2word[word_id]
-                  sampled_caption.append(word)
-                  if word == '<end>':
-                     break
-               sentence = ' '.join(sampled_caption)
-    
-               # Print out the image and the generated caption
-               print ("  Val mein Predicted: ", sentence)
-               
-               outputs = captions[0,:]
-               sampled_ids = outputs
-               sampled_ids = sampled_ids.cpu().numpy()
-               sampled_caption = []
-               for word_id in sampled_ids:
-                  word = vocab.idx2word[word_id]
-                  sampled_caption.append(word)
-                  if word == '<end>':
-                   break
-               sentence = ' '.join(sampled_caption)
-    
-               # Print out the image and the generated caption
-               print ("  Val mein Original: ", sentence)
-               print('\n')
-               return l/(i+1)
+            features = features[0,:]
+            captions = captions[0,:]
+            print("Shape of features and captions: ", features.shape, captions.shape)
+            generate(features, captions)
+            sys.exit()
+            return l/(i+1)
      
     return l/(i+1)
     
 ## Train 
 def train():
+    optimizer.zero_grad()
     model.train()
     global updates 
     l = 0
@@ -133,49 +159,23 @@ def train():
             captions = captions.to(device)
             outputs = model(features, captions, lengths)
             bsz = features.shape[0]
+            targets = pack_padded_sequence(captions, lengths, batch_first=True)[0]
+
             
             if debug_flag:
                captions_bkp = captions
                outputs_bkp = outputs
 
-            loss = criterion(outputs.reshape(bsz*outputs.shape[1], outputs.shape[2]),captions.reshape(captions.shape[0] * captions.shape[1]))
+            loss = criterion(outputs,targets)
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(params, 0.25)
             optimizer.step()
             
             l += loss.item()
             
-            if debug_flag and i% 300 == 1:
-               captions = captions_bkp
-               outputs = outputs_bkp
-               captions = captions[0,:]
-               outputs = outputs[0,:,:]
-               sampled_ids = torch.max(outputs,dim=1)[1]
-               sampled_ids = sampled_ids.cpu().numpy()
-               sampled_caption = []
-               for word_id in sampled_ids:
-                  word = vocab.idx2word[word_id]
-                  sampled_caption.append(word)
-                  if word == '<end>':
-                     break
-               sentence = ' '.join(sampled_caption)
-    
-               # Print out the image and the generated caption
-               print ("  Train mein Predicted: ", sentence)
-
-               outputs = captions
-               sampled_ids = outputs
-               sampled_ids = sampled_ids.cpu().numpy()
-               sampled_caption = []
-               for word_id in sampled_ids:
-                  word = vocab.idx2word[word_id]
-                  sampled_caption.append(word)
-                  if word == '<end>':
-                   break
-               sentence = ' '.join(sampled_caption)
-    
-               # Print out the image and the generated caption
-               print ("  Train mein Original: ", sentence)
+            if i % 100 == 1:
+                print("  After ", i, " batches train loss: ", l/(i+1))
                 
 
      
@@ -187,7 +187,7 @@ def train():
 for epoch in range(10):
     epoch_start_time = time.time()
     train_loss = train()
-    val_loss = val()
+    val_loss = val(0)
     g = open(log_file, 'a')
     g.write("Epoch: " +  str(epoch).zfill(3) + " Train Loss: " +  str(train_loss) +  " Val Loss: " +  str(val_loss)  +  " Time per epoch: " + str(time.time() - epoch_start_time) + " seconds" + '\n')    
     g.close()   
