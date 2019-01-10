@@ -30,7 +30,7 @@ def get_data(filename, set, location='./data'):
             dst_path = location + '/coca_' + set + '_' + str(count).zfill(10) + '.jpg' 
             try:
                urllib.request.urlretrieve(url, dst_path)
-            except urllib.error.HTTPError:
+            except :
                g = open('log_' + set, 'a')
                g.write("Error with the url " + str(url) + '\n')
                g.close()
