@@ -28,24 +28,31 @@ class CocoDataset(data.Dataset):
         self.image_ids = list(self.ids)
         for i, id in enumerate(self.ids):
           if i > len(self.ids) - 3:
-            continue
+            break
           else:
             id_next = self.image_ids[i+1]
             self.image_name.append(id)
             self.features.append(i2f_dict[id])
             self.captions.append(i2c_dict[id_next])
-        
+
             if (i % 1000) == 0:
                 print("[{}/{}] curated.".format(i+1, len(self.ids)))
 
         self.vocab = vocab
+        assert len(self.features) == len(self.captions)
+
 
     def __getitem__(self, index):
         """Returns one data pair (image and caption)."""
-        vocab = self.vocab
-        caption = self.captions[index]
-        img_feature = self.features[index]
-        img_name = self.image_name[index]
+        try:
+          vocab = self.vocab
+          caption = self.captions[index]
+          img_feature = self.features[index]
+          img_name = self.image_name[index]
+        except IndexError:
+          print(index, len(self.captions), len(self.features))
+          sys.exit()
+ 
 
         # Convert caption (string) to word ids.
         tokens = nltk.tokenize.word_tokenize(str(caption).lower())

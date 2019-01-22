@@ -141,8 +141,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_layers', type=int , default=2, help='number of layers in lstm')
     parser.add_argument('--feature_size', type=int , default=2048, help='dimension of image vectors')   
  
-    parser.add_argument('--num_epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=2)
+    parser.add_argument('--num_epochs', type=int, default=1)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=2)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     args = parser.parse_args()
