@@ -1,2 +1,4 @@
 *.pkl
 log*
+*ckpt
+*models*
