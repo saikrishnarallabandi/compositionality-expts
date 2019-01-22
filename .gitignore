@@ -2,3 +2,10 @@
 log*
 *ckpt
 *models*
+=======
+
+*.swp*
+
+# Dont upload data
+conceptual_captions/data
+conceptual_captions/scripts/log*

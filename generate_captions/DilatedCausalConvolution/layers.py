@@ -9,6 +9,27 @@ import math
 print_flag = 0
 
 
+class AdvancedLSTM(nn.LSTM):
+    # Learns initial hidden state
+    def __init__(self, *args, **kwargs):
+        super(AdvancedLSTM, self).__init__(*args, **kwargs)
+        bi = 2 if self.bidirectional else 1
+        print("Bi flag is ", bi)
+        self.h0 = nn.Parameter(torch.FloatTensor(bi, 1, self.hidden_size).zero_())
+        self.c0 = nn.Parameter(torch.FloatTensor(bi, 1, self.hidden_size).zero_())
+
+    def initial_state(self, n):
+        return (
+            self.h0.expand(-1, n, -1).contiguous(),
+            self.c0.expand(-1, n, -1).contiguous()
+        )
+
+    def forward(self, input, hx=None):
+        if hx is None:
+            n = input.shape[0]
+            hx = self.initial_state(n)
+        return super(AdvancedLSTM, self).forward(input, hx=hx)
+
 class AdvancedConv1d(nn.Conv1d):
 
     def __init__(self, *args, **kwargs):

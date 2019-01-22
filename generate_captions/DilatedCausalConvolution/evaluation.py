@@ -25,7 +25,7 @@ def main(args):
         imageid2features = pickle.load(f)
 
     # Build models
-    decoder = CaptionCNN(args.feature_size, args.embed_size, args.hidden_size, len(vocab), args.num_layers).eval() ## Batch norm
+    decoder = CaptionSingleCNN(args.feature_size, args.embed_size, args.hidden_size, len(vocab), args.num_layers).eval() ## Batch norm
     decoder = decoder.to(device)
 
     # Load the trained model parameters
@@ -66,7 +66,7 @@ def main(args):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--decoder_path', type=str, default='./models_cnn/decoder-10-500.ckpt', help='path for trained decoder')
+    parser.add_argument('--decoder_path', type=str, default='./models_cnn/decoder-4-700.ckpt', help='path for trained decoder')
     parser.add_argument('--vocab_path', type=str, default='./vocab.pkl', help='path for vocabulary wrapper')
     parser.add_argument('--imgid2caption_pickle_file', type=str, default='./imageid2captions_val.pkl', help='path for image 2 captions pickle file')
     parser.add_argument('--imgid2feature_pickle_file', type=str, default='./imageid2features_val.pkl', help='path for image 2 features pickle file')
