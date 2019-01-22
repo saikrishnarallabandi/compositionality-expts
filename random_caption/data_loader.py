@@ -27,15 +27,16 @@ class CocoDataset(data.Dataset):
 
         self.image_ids = list(self.ids)
         for i, id in enumerate(self.ids):
-          if i > len(self.ids) - 3:
-            break
+          if i == len(self.ids) - 1:
+            id_next = self.image_ids[0]
           else:
             id_next = self.image_ids[i+1]
-            self.image_name.append(id)
-            self.features.append(i2f_dict[id])
-            self.captions.append(i2c_dict[id_next])
 
-            if (i % 1000) == 0:
+          self.image_name.append(id)
+          self.features.append(i2f_dict[id])
+          self.captions.append(i2c_dict[id_next])
+
+          if (i % 1000) == 0:
                 print("[{}/{}] curated.".format(i+1, len(self.ids)))
 
         self.vocab = vocab
