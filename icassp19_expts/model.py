@@ -163,14 +163,23 @@ class CaptionRNN_VItopline(nn.Module):
         super(CaptionRNN_VItopline, self).__init__()
         self.embed_size = embed_size
         self.embed = nn.Embedding(vocab_size, embed_size)
+<<<<<<< HEAD
         self.lstm = nn.LSTM(128+embed_size, hidden_size, num_layers, batch_first=True)
+=======
+        self.lstm = nn.LSTM(embed_size+embed_size_image, hidden_size, num_layers, batch_first=True)
+>>>>>>> 41b18133f56b80d88f1b350c3a344d8f9d9e8f2c
         self.final_linear = layers.SequenceWise(nn.Linear(hidden_size, vocab_size))
         self.max_seg_length = max_seq_length
 
         self.image_linear = nn.Linear(feature_size, embed_size_image)
         self.bn = nn.BatchNorm1d(embed_size_image, momentum=0.01)
+<<<<<<< HEAD
         self.image_linear_mu = layers.SequenceWise(nn.Linear(embed_size_image, 128))
         self.image_linear_var = layers.SequenceWise(nn.Linear(embed_size_image, 128))
+=======
+        self.image_linear_mu = layers.SequenceWise(nn.Linear(embed_size_image, embed_size_image))
+        self.image_linear_var = layers.SequenceWise(nn.Linear(embed_size_image, embed_size_image))
+>>>>>>> 41b18133f56b80d88f1b350c3a344d8f9d9e8f2c
       
         self.encoder_lstm = nn.LSTM(embed_size_image, embed_size_image)
 
@@ -198,6 +207,7 @@ class CaptionRNN_VItopline(nn.Module):
         z = eps.mul(std).add_(mu)
         return z
 
+<<<<<<< HEAD
     def forward_temporalz(self, features, captions):
 
         max_length = captions.shape[-1]
@@ -240,6 +250,8 @@ class CaptionRNN_VItopline(nn.Module):
         sigmas = torch.stack(sigmas, 1)
         return logits, mus, sigmas   
 
+=======
+>>>>>>> 41b18133f56b80d88f1b350c3a344d8f9d9e8f2c
     def forward(self, features, captions):
         """Decode image feature vectors and generates captions."""
 
@@ -308,3 +320,40 @@ class CaptionRNN_VItopline(nn.Module):
         return sampled_ids
 
 
+<<<<<<< HEAD
+=======
+    def sample_z(self, features, z, states=None):
+        """Generate captions for given image features using greedy search."""
+        sampled_ids = []
+        assert len(z.shape) == 3
+        inputs = torch.rand(z.shape[0], 1)
+        inputs.zero_()
+        inputs[:,0] = 1
+        embeddings = self.embed(inputs.long().cuda())
+        #print("Shape of embeddings: ", embeddings.shape)
+        assert len(embeddings.shape) == 3
+        features = self.image_linear(features)
+        features = features.unsqueeze(1)
+        mu, sigma, states_encoder = self.encoder_test(features)
+        states = None
+        inputs = torch.cat((z, embeddings), -1)
+        for i in range(self.max_seg_length):
+            assert inputs.shape[1] == 1
+            assert len(inputs.shape) == 3
+            outputs, states = self.lstm(inputs, states)          # hiddens: (batch_size, 1, hidden_size)
+            outputs = self.final_linear(outputs)            # outputs:  (batch_size, vocab_size)
+            #print("Shape of outputs: ", outputs.shape)
+            _, predicted = outputs.max(-1)                        # predicted: (batch_size)
+            sampled_ids.append(predicted)
+            #print("Shape of predicted is : ", predicted, predicted.shape)
+            if predicted.item() == 2:
+               break
+            inputs = self.embed(predicted.squeeze(0))                       # inputs: (batch_size, embed_size)
+            inputs = inputs.unsqueeze(1)                         # inputs: (batch_size, 1, embed_size)
+            mu, sigma, states_encoder = self.encoder_test(features, states_encoder)
+            z = self.reparameterize(mu, sigma)
+            inputs = torch.cat((z, inputs), -1)
+        sampled_ids = torch.stack(sampled_ids, 1)                # sampled_ids: (batch_size, max_seq_length)
+        return sampled_ids
+
+>>>>>>> 41b18133f56b80d88f1b350c3a344d8f9d9e8f2c
