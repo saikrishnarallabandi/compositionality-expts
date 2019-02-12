@@ -86,6 +86,7 @@ def train(epoch):
        loss = loss_function(recon_batch, data, mu, logvar)
        loss.backward()
        train_loss += loss.item()
+       torch.nn.utils.clip_grad_norm(model.parameters(), 0.25)
        optimizer.step()
 
        #if i % 10 == 1:
