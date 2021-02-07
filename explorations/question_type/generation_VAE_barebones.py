@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.onnx
 from torch.autograd import Variable
-from data_loader_barebones import *
 import model_VAE_barebones as model
 from logger import *
 import logging
@@ -84,8 +83,9 @@ def gumbel_argmax(logits, dim):
    return torch.max(logits + sample_gumbel(logits.size(), out=logits.data.new()), dim)[1]
 
 
-
-def gen_evaluate(model, data_full, hidden, train_i2w, data_type):
+import random
+seed = 1 
+def gen_evaluate(model, data_full, hidden, train_i2w, train_wids, data_type):
     #print (data_full.size()), "input size for the generation, should be a single sample"
     model.eval()
     kl_loss = 0
@@ -100,7 +100,15 @@ def gen_evaluate(model, data_full, hidden, train_i2w, data_type):
         data = Variable(data).cuda()
         targets = Variable(targets).cuda()
         data_type =  Variable(data_type).cuda()
-        new_input_token = data[:,0].unsqueeze(1) # <SOS> token
+        if seed:
+            types = ["Is", "Are", "How", "What"]
+            t = random.randint(0, len(types)-1)
+            print(t)
+            type_token = train_wids[types[t]] # Will be a word so tokenize it
+            new_input_token = Variable(torch.LongTensor(1,1).fill_(type_token)).cuda()
+            gen_sample.append(types[t])
+        else:
+            new_input_token = data[:,0].unsqueeze(1) # <SOS> token
         for d in range(data.size(1)):
             original_sample.append(train_i2w[int(data[:,d])])
 
@@ -154,4 +162,4 @@ if args.generation:
       data_full = a[0]
       data_type = a[1]
       hidden = None
-      gen_evaluate( model, data_full, hidden, train_i2w, data_type)
+      gen_evaluate( model, data_full, hidden, train_i2w, train_wids, data_type)
